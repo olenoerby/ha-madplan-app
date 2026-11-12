@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.3
+
+- The logo says MadPlan.
+
 ## 1.0.2
 
 - Each person chooses where their messages go, such as their own phone, under Settings, Features.

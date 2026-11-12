@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1250 500">
-  <title>Dinnerplan</title>
+  <title>MadPlan</title>
   <svg x="0" y="0" width="500" height="500" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#41BDF5"/>
   <g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
     <!-- The house: the outline Home Assistant's own style is built on -->
@@ -20,5 +20,5 @@
     </g>
   </g>
 </svg>
-  <text x="535" y="292" font-family="'DejaVu Sans', Arial, sans-serif" font-weight="700" font-size="122" textLength="690" lengthAdjust="spacingAndGlyphs" fill="#41BDF5">Dinnerplan</text>
+  <text x="535" y="300" font-family="'DejaVu Sans', Arial, sans-serif" font-weight="700" font-size="145" fill="#41BDF5">MadPlan</text>
 </svg>
