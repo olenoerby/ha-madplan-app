@@ -1298,3 +1298,8 @@ th.num {
   font-size: 1.05rem;
   font-weight: 650;
 }
+
+.tab-search {
+  gap: 8px;
+  flex-wrap: wrap;
+}
