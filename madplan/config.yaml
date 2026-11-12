@@ -7,10 +7,7 @@ arch:
   - amd64
   - aarch64
 init: false
-startup: application
-boot: auto
 ingress: true
-ingress_port: 8099
 # Closed unless an administrator gives it a port: only for an integration with a personal API token.
 # Requests on it can never name a user in a header, as they do not come from the Supervisor.
 ports:
@@ -23,7 +20,6 @@ homeassistant_api: true
 map:
   - type: media
     read_only: false
-backup: hot
 options:
   mealie_shopping_list: MadPlan
   mealie_sync_minutes: 15

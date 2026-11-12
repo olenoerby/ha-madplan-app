@@ -299,7 +299,7 @@ def test_what_is_planned_in_mealie_is_reported_with_a_link_that_works(admin_clie
     try:
         web_recipe(db, configured, "noget andet")
         plan = plan_for(admin_client, day)
-        assert admin_client.post("/api/v1/admin/integrations/test").json()["mealie"]["ok"] is True
+        assert admin_client.post("/api/v1/admin/setup/test").json()["mealie"]["ok"] is True
         found = admin_client.get(f"/api/v1/plans/{plan['id']}/mealie-entries").json()
         assert {(e["title"], e["meal_type"]) for e in found} == {(unique, "dinner"), ("Rester", "lunch")}
         dish = next(e for e in found if e["title"] == unique)
@@ -458,21 +458,21 @@ def test_entries_made_in_mealie_show_on_our_calendar(admin_client, configured, m
 
 
 def test_connection_test_on_the_admin_page(admin_client, configured):
-    result = admin_client.post("/api/v1/admin/integrations/test").json()
+    result = admin_client.post("/api/v1/admin/setup/test").json()
     assert result["mealie"]["ok"] is True
     assert result["home_assistant"] == {"ok": False, "error": "not_configured"}
 
 
-def test_tokens_are_write_only_and_encrypted(admin_client, db, configured):
-    status = admin_client.get("/api/v1/admin/integrations").json()
-    assert status["mealie_token_set"] is True
-    assert TOKEN not in str(status)
+def test_the_token_never_reaches_the_browser(admin_client, db, configured):
+    """It is in the app's configuration in Home Assistant, and MadPlan neither shows nor keeps it."""
+    setup = admin_client.get("/api/v1/admin/setup").json()
+    assert setup["mealie"]["token_set"] is True
+    assert TOKEN not in str(setup)
 
     from app.models import AppSetting
 
     db.expire_all()
-    stored = db.get(AppSetting, f"integrations:{configured.id}")
-    assert TOKEN not in str(stored.value)
+    assert all(TOKEN not in str(row.value) for row in db.query(AppSetting).all())
 
 
 def test_a_page_mealie_cannot_read_is_not_kept(db, configured, mealie, unique, monkeypatch):
