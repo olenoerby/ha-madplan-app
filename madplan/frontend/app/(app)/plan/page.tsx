@@ -7,10 +7,10 @@ import { NearbyList } from "@/components/PlanDish";
 import { RecipeDialog, RecipeLinkButton } from "@/components/RecipeDialog";
 import { Button, Card, Check, Empty, Field, Icon, Modal, Notice, NumberField, PageHead, Segmented, Stepper } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
-import { dayLong, dayShort, kr, todayIso } from "@/lib/format";
+import { dayLong, dayShort, kr, todayIso, weekdayShort } from "@/lib/format";
 import { useAction, useApi, useMe, useToast } from "@/lib/hooks";
 import { useI18n, type TranslationKey } from "@/lib/i18n";
-import type { Bought, DishSuggestionOption, Meal, MealieEntry, MealType, Plan, PlanSummary, Reason, ShareTarget } from "./types";
+import type { Bought, DishSuggestionOption, Meal, MealieEntry, MealType, Plan, PlanPreview, PlanSummary, Reason, ShareTarget } from "./types";
 
 /** "Tirsdag 17. november" in the middle of a Danish sentence is written "tirsdag 17. november". */
 function inSentence(text: string, locale: string): string {
@@ -253,6 +253,28 @@ function CreatePlan({ onClose, onCreated }: { onClose: () => void; onCreated: (p
   const [budget, setBudget] = useState<number | null>(null);
   const [useAi, setUseAi] = useState(true);
   const [noRecipes, setNoRecipes] = useState(false);
+  const [skip, setSkip] = useState<string[]>([]);
+  const [preview, setPreview] = useState<PlanPreview | null>(null);
+  const [previewTick, setPreviewTick] = useState(0);
+  const periodReady = mode !== "range" || (Boolean(start) && Boolean(end) && end >= start);
+
+  // Which days the plan covers, and what Mealie has on them, follows the chosen period.
+  useEffect(() => {
+    if (!periodReady) {
+      setPreview(null);
+      return;
+    }
+    let current = true;
+    const timer = window.setTimeout(() => {
+      api<PlanPreview>("/plans/preview", { body: { mode, days_ahead: daysAhead, start: mode === "range" ? start : null, end: mode === "range" ? end : null } })
+        .then((result) => current && setPreview(result))
+        .catch(() => current && setPreview(null));
+    }, 250);
+    return () => {
+      current = false;
+      window.clearTimeout(timer);
+    };
+  }, [mode, daysAhead, start, end, periodReady, previewTick]);
 
   const chosenTypes = mealTypes ?? household?.settings.default_meal_types ?? ["dinner"];
   const currentAdults = adults ?? household?.settings.default_adults ?? me.household.default_adults;
@@ -283,6 +305,16 @@ function CreatePlan({ onClose, onCreated }: { onClose: () => void; onCreated: (p
             <input type="date" value={end} onChange={(e) => setEnd(e.target.value)} />
           </Field>
         </div>
+      )}
+      {preview && (
+        <PlanDays
+          preview={preview}
+          mealTypes={chosenTypes}
+          skip={skip}
+          setSkip={setSkip}
+          mealieReady={me.setup.mealie && preview.mealie.connected}
+          reload={() => setPreviewTick((n) => n + 1)}
+        />
       )}
       <div className="stack-sm">
         <span className="small strong muted">{t("plan.mealTypes")}</span>
@@ -319,7 +351,7 @@ function CreatePlan({ onClose, onCreated }: { onClose: () => void; onCreated: (p
           variant="primary"
           working={busy}
           workingTexts={useAi ? [t("working.plan1"), t("working.plan2"), t("working.plan3")] : [t("working.planNoSearch")]}
-          disabled={chosenTypes.length === 0 || (mode === "range" && (!start || !end))}
+          disabled={chosenTypes.length === 0 || !periodReady}
           onClick={() =>
             void run(async () => {
               setNoRecipes(false);
@@ -335,6 +367,8 @@ function CreatePlan({ onClose, onCreated }: { onClose: () => void; onCreated: (p
                     children: currentChildren,
                     budget,
                     use_ai: useAi,
+                    // Only days still in the period count.
+                    skip_dates: skip.filter((day) => preview?.days.some((d) => d.date === day)),
                   },
                 });
                 await onCreated(created);
@@ -352,6 +386,138 @@ function CreatePlan({ onClose, onCreated }: { onClose: () => void; onCreated: (p
         </Button>
       </div>
     </Modal>
+  );
+}
+
+/** The days a new plan covers, as a small calendar, with what Mealie already has on each. */
+function PlanDays({
+  preview,
+  mealTypes,
+  skip,
+  setSkip,
+  mealieReady,
+  reload,
+}: {
+  preview: PlanPreview;
+  mealTypes: MealType[];
+  skip: string[];
+  setSkip: (days: string[]) => void;
+  mealieReady: boolean;
+  reload: () => void;
+}) {
+  const { t, locale } = useI18n();
+  const [writing, setWriting] = useState<string | null>(null);
+  const setSkipped = (day: string, skipped: boolean) => setSkip(skipped ? [...skip.filter((d) => d !== day), day] : skip.filter((d) => d !== day));
+  const entries = mealieReady ? preview.mealie.entries : [];
+  return (
+    <div className="stack-sm">
+      <span className="small strong muted">
+        {t("plan.days.title", { from: dayLong(preview.start, locale), to: dayLong(preview.end, locale), count: preview.days.length })}
+      </span>
+      <div className="plan-days">
+        {preview.days.map((day) => {
+          const here = entries.filter((e) => e.date.slice(0, 10) === day.date);
+          const dishes = here.filter((e) => e.kind !== "note");
+          const notes = here.filter((e) => e.kind === "note");
+          const skipped = day.always_skipped || skip.includes(day.date);
+          return (
+            <div key={day.date} className={`plan-day${skipped ? " skipped" : ""}`}>
+              <div className="plan-day-date" aria-hidden>
+                <span>{weekdayShort(day.date, locale)}</span>
+                <strong>{Number(day.date.slice(8, 10))}</strong>
+              </div>
+              <div className="plan-day-body">
+                <span className="small strong">{dayLong(day.date, locale)}</span>
+                {dishes.map((entry) => (
+                  <span key={entry.id ?? entry.title} className="small">
+                    <Icon name="book" size={14} /> {t(`meal.${entry.meal_type}` as TranslationKey)}: {entry.title}{" "}
+                    <span className="muted">{mealTypes.includes(entry.meal_type as MealType) ? t("plan.days.kept") : t("plan.days.inMealie")}</span>
+                  </span>
+                ))}
+                {notes.map((entry) => (
+                  <span key={entry.id ?? entry.title} className="small">
+                    <Icon name="info" size={14} /> {t("plan.days.note", { meal: t(`meal.${entry.meal_type}` as TranslationKey), text: entry.title })}
+                  </span>
+                ))}
+                {day.always_skipped ? (
+                  <span className="small muted">{t("plan.days.alwaysSkipped")}</span>
+                ) : notes.length > 0 ? (
+                  <Segmented
+                    label={dayLong(day.date, locale)}
+                    value={skipped ? "skip" : "beside"}
+                    onChange={(value) => setSkipped(day.date, value === "skip")}
+                    options={[
+                      { value: "beside", label: t("plan.days.beside") },
+                      { value: "skip", label: t("plan.days.skipDay") },
+                    ]}
+                  />
+                ) : null}
+                <div className="plan-day-actions">
+                  {!day.always_skipped && notes.length === 0 && <Check label={t("plan.days.skip")} checked={skipped} onChange={(value) => setSkipped(day.date, value)} />}
+                  {mealieReady && day.date >= todayIso() && writing !== day.date && (
+                    <button type="button" className="link-button small" onClick={() => setWriting(day.date)}>
+                      {t("plan.days.addNote")}
+                    </button>
+                  )}
+                </div>
+                {writing === day.date && (
+                  <MealieNoteForm
+                    day={day.date}
+                    mealTypes={mealTypes}
+                    onDone={(saved) => {
+                      setWriting(null);
+                      if (saved) reload();
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function MealieNoteForm({ day, mealTypes, onDone }: { day: string; mealTypes: MealType[]; onDone: (saved: boolean) => void }) {
+  const { t } = useI18n();
+  const { busy, run } = useAction();
+  const [mealType, setMealType] = useState<MealType>(mealTypes.includes("dinner") ? "dinner" : (mealTypes[0] ?? "dinner"));
+  const [text, setText] = useState("");
+  return (
+    <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+      <select aria-label={t("plan.mealTypes")} value={mealType} onChange={(e) => setMealType(e.target.value as MealType)}>
+        {MEAL_ORDER.map((type) => (
+          <option key={type} value={type}>
+            {t(`meal.${type}` as TranslationKey)}
+          </option>
+        ))}
+      </select>
+      <input
+        aria-label={t("plan.days.noteText")}
+        placeholder={t("plan.days.notePlaceholder")}
+        maxLength={120}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        style={{ flex: "1 1 160px" }}
+      />
+      <Button
+        variant="primary"
+        working={busy}
+        disabled={!text.trim()}
+        onClick={() =>
+          void run(async () => {
+            await api("/mealie/notes", { body: { date: day, meal_type: mealType, title: text.trim() } });
+            onDone(true);
+          })
+        }
+      >
+        {t("plan.days.saveNote")}
+      </Button>
+      <Button variant="ghost" onClick={() => onDone(false)}>
+        {t("common.cancel")}
+      </Button>
+    </div>
   );
 }
 

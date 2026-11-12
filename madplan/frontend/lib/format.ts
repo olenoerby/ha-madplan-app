@@ -27,6 +27,11 @@ export function dayLong(iso: string, locale: Locale): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+export function weekdayShort(iso: string, locale: Locale): string {
+  const text = new Intl.DateTimeFormat(tag(locale), { weekday: "short" }).format(parseDay(iso)).replace(".", "");
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 export function dayShort(iso: string, locale: Locale): string {
   return new Intl.DateTimeFormat(tag(locale), { day: "numeric", month: "short" }).format(parseDay(iso));
 }

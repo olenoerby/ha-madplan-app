@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.4
+
+- "New meal plan" shows the days the plan covers, as a small calendar, and each can be skipped.
+- With Mealie connected, the calendar shows what Mealie already has. A dish there keeps its place
+  and comes onto the plan. For a note, such as "Eating out", choose between a dish beside it and
+  skipping the day. Notes can be written to Mealie from the dialog.
+- A note in Mealie no longer becomes a meal on a skipped day, or beside a dish planned for the same
+  meal.
+
 ## 1.0.3
 
 - The logo says MadPlan.

@@ -1217,3 +1217,78 @@ th.num {
     display: block;
   }
 }
+
+/* The days of a new plan, in the "New meal plan" dialog */
+
+.plan-days {
+  display: grid;
+  gap: 6px;
+  max-height: 340px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.plan-day {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  gap: 10px;
+  align-items: start;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.plan-day.skipped {
+  background: var(--surface-2);
+}
+
+.plan-day.skipped .plan-day-date {
+  opacity: 0.5;
+}
+
+.plan-day-date {
+  display: grid;
+  justify-items: center;
+  padding: 4px 0;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--ink);
+  line-height: 1.15;
+}
+
+.plan-day-date span {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.plan-day-date strong {
+  font-size: 1.2rem;
+}
+
+.plan-day-body {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.plan-day-body .small {
+  overflow-wrap: anywhere;
+}
+
+.plan-day-body .link-button {
+  color: var(--muted);
+}
+
+.plan-day-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 16px;
+}
+
+.plan-day-actions:empty {
+  display: none;
+}

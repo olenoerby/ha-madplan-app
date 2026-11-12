@@ -290,6 +290,8 @@ class PlanRequest:
     dates: list[date]
     meal_types: list[str]
     skip_dates: set[date] = field(default_factory=set)
+    # Meals Mealie already has a dish for. Mealie has the last word, so they are left to it.
+    taken: set[tuple[date, str]] = field(default_factory=set)
     guests: dict[date, tuple[int, int]] = field(default_factory=dict)
     adults: int | None = None
     children: int | None = None
@@ -363,6 +365,8 @@ def generate_plan(
             continue
         adults, children, people = _people(ctx, request, day)
         for meal_type in request.meal_types:
+            if (day, meal_type) in request.taken:
+                continue
             options = _choose(pools.get(meal_type, []), people, day, ctx, used, week_proteins, previous)
             if not options:
                 continue

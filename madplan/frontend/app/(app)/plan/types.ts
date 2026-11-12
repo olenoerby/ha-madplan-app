@@ -1,6 +1,6 @@
 import type { RecipeLink } from "@/lib/types";
 
-export type { Bought, MealieEntry, Meal, MealType, Plan, PlanSummary, Reason, Recipe } from "@/lib/types";
+export type { Bought, MealieEntry, Meal, MealType, Plan, PlanPreview, PlanSummary, Reason, Recipe } from "@/lib/types";
 
 export interface DishSuggestionOption {
   recipe_id: number;

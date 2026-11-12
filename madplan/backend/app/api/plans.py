@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import date, timedelta
 from typing import Literal
 
@@ -13,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.ai.engine import AiUnavailable
 from app.api.deps import CurrentUser, Db, household_of
+from app.core import ha
 from app.core.db import local_today
 from app.models import (
     MealAlternative,
@@ -25,6 +27,7 @@ from app.models import (
     ShoppingList,
     User,
 )
+from app.services.app_settings import mealie_client
 from app.services.catalog import section_of
 from app.services.leftovers import FollowsAnotherMeal, leftovers_of
 from app.services.manual_meals import (
@@ -64,6 +67,8 @@ from app.services.shopping import build_shopping_list, complete_shopping_list
 from app.services.text import normalize
 from app.services.voting import MealBought, can_view_plan, can_vote, cast_vote, change_status, eligible_voters, ensure_can_drop
 from app.settings_schema import MealType, household_settings
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(tags=["plans"])
 
@@ -238,14 +243,89 @@ def _plan_payload(db: Session, plan: MealPlan, user: User) -> dict:
     }
 
 
+def _dates_of(payload: PlanIn) -> list[date]:
+    try:
+        return resolve_dates(payload.mode, days_ahead=payload.days_ahead, start=payload.start, end=payload.end)
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+
+
+def _mealie_in_period(db: Session, household_id: int, first: date, last: date) -> list[dict]:
+    """What Mealie has on these days that no plan here knows of yet. Empty without Mealie."""
+    if not ha.options().mealie_configured:
+        return []
+    plans = list(
+        db.scalars(select(MealPlan).where(MealPlan.household_id == household_id, MealPlan.start_date <= last, MealPlan.end_date >= first))
+    )
+    # Notes about guests are MadPlan's own, whichever plan they came from.
+    guest_notes = db.scalars(
+        select(PlannedMeal.mealie_note_id)
+        .join(MealPlan, MealPlan.id == PlannedMeal.plan_id)
+        .where(MealPlan.household_id == household_id, PlannedMeal.mealie_note_id.is_not(None))
+    )
+    return calendar_entries(db, plans, household_id, first, last, ignore={str(n) for n in guest_notes})
+
+
+def _take_from_mealie(db: Session, household_id: int) -> None:
+    """Brings Mealie's own dishes onto the new plan now, rather than at the next reading."""
+    from app.integrations.mealie import MealieError
+    from app.services.mealie_pull import pull_plan
+
+    client = mealie_client(db, household_id)
+    if client is None:
+        return
+    try:
+        with client:
+            pull_plan(db, household_id, client)
+    except MealieError as exc:
+        # The next reading of Mealie brings them in.
+        log.info("could not read Mealie's planner for a new plan: %s", exc)
+
+
+class MealieNoteIn(BaseModel):
+    date: date
+    meal_type: MealType = "dinner"
+    title: str = Field(min_length=1, max_length=120)
+
+
+@router.post("/mealie/notes", status_code=201)
+def add_mealie_note(payload: MealieNoteIn, user: CurrentUser, db: Db) -> dict:
+    """A note in Mealie's planner, such as "eating out", written as the person's own."""
+    from app.integrations.mealie import MealieError
+
+    client = mealie_client(db, user.household_id)
+    if client is None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "mealie_not_configured")
+    if payload.date < local_today():
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "date_in_past")
+    try:
+        with client:
+            entry = client.create_plan_entry(payload.date, payload.meal_type, title=payload.title.strip())
+    except MealieError as exc:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "mealie_failed") from exc
+    return {"id": str(entry.get("id")), "kind": "note", "date": payload.date, "meal_type": payload.meal_type, "title": payload.title.strip(), "from_madplan": False}
+
+
+@router.post("/plans/preview")
+def preview_plan(payload: PlanIn, user: CurrentUser, db: Db) -> dict:
+    """The days a new plan would cover, and what Mealie has on them, before anything is made."""
+    household = household_of(db, user)
+    dates = _dates_of(payload)
+    skip_weekdays = set(household_settings(household.settings).skip_weekdays)
+    entries = _mealie_in_period(db, household.id, min(dates), max(dates))
+    return {
+        "start": min(dates),
+        "end": max(dates),
+        "days": [{"date": d, "always_skipped": d.weekday() in skip_weekdays} for d in dates],
+        "mealie": {"connected": ha.options().mealie_configured, "entries": entries},
+    }
+
+
 @router.post("/plans", status_code=201)
 def create_plan(payload: PlanIn, user: CurrentUser, db: Db) -> dict:
     household = household_of(db, user)
     hs = household_settings(household.settings)
-    try:
-        dates = resolve_dates(payload.mode, days_ahead=payload.days_ahead, start=payload.start, end=payload.end)
-    except ValueError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+    dates = _dates_of(payload)
     meal_types = list(payload.meal_types or hs.default_meal_types)
     if not meal_types:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "no_meal_types")
@@ -263,10 +343,18 @@ def create_plan(payload: PlanIn, user: CurrentUser, db: Db) -> dict:
                 # The plan is made either way, and the page can say that no search took place.
                 ai_note = exc.reason
 
+    # A dish already in Mealie's planner keeps its place: Mealie has the last word.
+    in_mealie = _mealie_in_period(db, household.id, min(dates), max(dates))
+    taken = {
+        (date.fromisoformat(str(e["date"])[:10]), e["meal_type"])
+        for e in in_mealie
+        if e["kind"] == "recipe" and not e["from_madplan"] and e["date"]
+    }
     request = PlanRequest(
         dates=dates,
         meal_types=meal_types,
         skip_dates=set(payload.skip_dates),
+        taken=taken,
         guests={g.date: (g.adults, g.children) for g in payload.guests},
         adults=payload.adults,
         children=payload.children,
@@ -277,6 +365,8 @@ def create_plan(payload: PlanIn, user: CurrentUser, db: Db) -> dict:
         plan = generate_plan(db, household, request, user, extra)
     except NoRecipes as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, "no_recipes") from exc
+    if in_mealie:
+        _take_from_mealie(db, household.id)
     notify_plan_ready(db, plan, user)
     db.commit()
     result = _plan_payload(db, plan, user)

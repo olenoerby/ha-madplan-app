@@ -570,7 +570,8 @@ def test_another_households_recipes_stay_theirs(admin_client, db, mealie):
     assert admin_client.get("/api/v1/new-recipes").json()["recipes"] == []
     for call in (admin_client.post(f"/api/v1/new-recipes/{theirs.id}/to-mealie"), admin_client.post(f"/api/v1/new-recipes/{theirs.id}/dismiss"), admin_client.delete(f"/api/v1/new-recipes/{theirs.id}/dismiss")):
         assert call.status_code == 404
-    assert mealie.calls == []
+    # Reading Mealie's planner when a plan is made is fine. Nothing may be written.
+    assert [c for c in mealie.calls if not c.startswith("GET ")] == []
 
 
 # Adding a recipe to Mealie from the page
@@ -625,7 +626,8 @@ def test_an_allergy_added_since_stops_the_import(admin_client, db, mealie):
     recipe = web_recipe(db)
     set_household(db, allergies=["kylling"])
     assert admin_client.post(f"/api/v1/new-recipes/{recipe.id}/to-mealie").json()["detail"] == "import_allergy"
-    assert mealie.calls == []
+    # Reading Mealie's planner when a plan is made is fine. Nothing may be written.
+    assert [c for c in mealie.calls if not c.startswith("GET ")] == []
 
 
 def test_a_recipe_in_mealie_with_an_allergen_is_not_taken_for_this_one(admin_client, db, mealie):
@@ -793,7 +795,8 @@ def test_a_yes_does_not_touch_mealie(admin_client, db, mealie):
     assert plan["meals"][0]["status"] == "accepted"
     assert plan["meals"][0]["sync_status"] == "none"
     assert run_worker(db) == {"synced": 0, "failed": 0}
-    assert mealie.calls == []
+    # Reading Mealie's planner when a plan is made is fine. Nothing may be written.
+    assert [c for c in mealie.calls if not c.startswith("GET ")] == []
 
 
 def test_yes_to_all_and_an_admin_deciding_do_not_touch_mealie_either(admin_client, db, mealie):
@@ -804,7 +807,8 @@ def test_yes_to_all_and_an_admin_deciding_do_not_touch_mealie_either(admin_clien
     assert admin_client.post(f"/api/v1/meals/{plan['meals'][0]['id']}/decide", json={"vote": "yes"}).status_code == 200
     admin_client.post(f"/api/v1/plans/{plan['id']}/accept-all")
     run_worker(db)
-    assert mealie.calls == []
+    # Reading Mealie's planner when a plan is made is fine. Nothing may be written.
+    assert [c for c in mealie.calls if not c.startswith("GET ")] == []
 
 
 def test_a_vote_from_home_assistant_does_not_touch_mealie(admin_client, db, mealie, client):
@@ -815,7 +819,8 @@ def test_a_vote_from_home_assistant_does_not_touch_mealie(admin_client, db, meal
     answer = client.post(f"/api/v1/ha/meals/{plan['meals'][0]['id']}/vote", json={"vote": "yes"}, headers={"Authorization": f"Bearer {token}"})
     assert answer.json()["status"] == "accepted"
     run_worker(db)
-    assert mealie.calls == []
+    # Reading Mealie's planner when a plan is made is fine. Nothing may be written.
+    assert [c for c in mealie.calls if not c.startswith("GET ")] == []
 
 
 def test_retry_cannot_be_used_to_send_before_the_button(admin_client, db, mealie):
@@ -824,7 +829,8 @@ def test_retry_cannot_be_used_to_send_before_the_button(admin_client, db, mealie
     plan = planned_and_accepted(admin_client, db)
     admin_client.post(f"/api/v1/meals/{plan['meals'][0]['id']}/retry-sync")
     run_worker(db)
-    assert mealie.calls == []
+    # Reading Mealie's planner when a plan is made is fine. Nothing may be written.
+    assert [c for c in mealie.calls if not c.startswith("GET ")] == []
 
 
 def test_the_button_sends_the_recipe_the_calendar_and_the_list(admin_client, db, mealie):
@@ -836,7 +842,8 @@ def test_the_button_sends_the_recipe_the_calendar_and_the_list(admin_client, db,
     sent = send(admin_client, plan["id"])
     assert sent["meals"][0]["sync_status"] == "pending"
     assert sent["mealie"]["sending"] == 1
-    assert mealie.calls == []  # The worker does it.
+    # Reading Mealie's planner when a plan is made is fine. Nothing may be written.
+    assert [c for c in mealie.calls if not c.startswith("GET ")] == []  # The worker does it.
     assert run_worker(db)["synced"] == 1
     assert list(mealie.recipes) == ["kylling-i-karry"]
     assert [e["recipeId"] for e in mealie.dishes] == ["id-kylling-i-karry"]
@@ -1032,7 +1039,8 @@ def test_a_meal_from_yesterday_is_not_sent_now(admin_client, db, mealie):
     db.commit()
     assert send(admin_client, plan["id"])["mealie"]["to_send"] == 0
     run_worker(db)
-    assert mealie.calls == []
+    # Reading Mealie's planner when a plan is made is fine. Nothing may be written.
+    assert [c for c in mealie.calls if not c.startswith("GET ")] == []
 
 
 def test_a_meal_sent_by_the_earlier_version_is_left_alone(admin_client, db, mealie):
@@ -1157,10 +1165,10 @@ def test_the_plan_page_can_see_what_mealie_has_planned_already(admin_client, db,
     stored = get_integrations(db, household_of_admin(db).id)
     save_integrations(db, household_of_admin(db).id, stored.model_copy(update={"mealie_group_slug": "home"}))
     db.commit()
-    entries = admin_client.get(f"/api/v1/plans/{plan['id']}/mealie-entries").json()
+    entries = [{k: v for k, v in e.items() if k != "id"} for e in admin_client.get(f"/api/v1/plans/{plan['id']}/mealie-entries").json()]
     assert entries == [
-        {"date": day, "meal_type": "dinner", "title": "Lasagne", "mealie_slug": "lasagne", "url": "https://mad.example.dk/g/home/r/lasagne", "from_madplan": False},
-        {"date": day, "meal_type": "lunch", "title": "Rester", "mealie_slug": None, "url": None, "from_madplan": False},
+        {"kind": "recipe", "date": day, "meal_type": "dinner", "title": "Lasagne", "mealie_slug": "lasagne", "url": "https://mad.example.dk/g/home/r/lasagne", "from_madplan": False},
+        {"kind": "note", "date": day, "meal_type": "lunch", "title": "Rester", "mealie_slug": None, "url": None, "from_madplan": False},
     ]
 
 
@@ -1355,7 +1363,8 @@ def test_a_reminder_comes_the_day_before_the_first_unsent_meal(admin_client, db,
     assert "Gem og Send til Mealie" in format_message("mealie_unsent", note.data, "da")
     # Nothing went to Mealie: the reminder only reminds.
     run_worker(db)
-    assert mealie.calls == []
+    # Reading Mealie's planner when a plan is made is fine. Nothing may be written.
+    assert [c for c in mealie.calls if not c.startswith("GET ")] == []
 
 
 def test_no_reminder_once_it_is_sent(admin_client, db, mealie):

@@ -137,6 +137,8 @@ Nothing has yet been tried on a real Home Assistant installation.
 | Planned leftovers | Works | Test |
 | Guests, skipped days, budget, "rarely, often, always" | Works | Test |
 | Next week's plan made by itself, and voted on | Works. Off by default | Test |
+| "New meal plan" shows its days as a small calendar, and any day can be skipped there | Works | Test and browser |
+| In that calendar, what Mealie already has: its dishes keep their place and come onto the plan, and for a note ("Eating out") you choose a dish beside it or skipping the day. Notes can be written to Mealie from there. Hidden without Mealie | Works | Test, and browser against a stand-in Mealie |
 
 ### Mealie
 

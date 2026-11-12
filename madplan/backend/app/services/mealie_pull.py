@@ -52,6 +52,18 @@ def _plan_for(plans: list[MealPlan], day: date) -> MealPlan | None:
     return max(covering, key=lambda p: p.id) if covering else None
 
 
+def _note_gives_way(plan: MealPlan, day: date, meal_type: str) -> bool:
+    """A note in Mealie, with no recipe, may say "eating out" as well as name a dish.
+
+    So it only becomes a meal where nothing is planned: on a skipped day, or beside a dish
+    chosen for the same meal, it stays a note in Mealie. That is what people choose when they
+    make a plan around one.
+    """
+    if any(d.date == day and d.skipped for d in plan.days):
+        return True
+    return any(m.date == day and m.meal_type == meal_type and m.status != "rejected" for m in plan.meals)
+
+
 def _record(meal: PlannedMeal, **changes) -> None:
     meal.mealie_sent = {**(meal.mealie_sent or {}), **changes}
 
@@ -127,6 +139,8 @@ def pull_plan(db: Session, household_id: int, client: MealieClient, today: date 
         recipe = recipes_by_mealie_id.get(entry.get("recipeId") or "")
         title = (recipe.title if recipe else (entry.get("recipe") or {}).get("name") or entry.get("title") or "").strip()
         if not title:
+            continue
+        if not entry.get("recipeId") and _note_gives_way(plan, day, _meal_type(entry)):
             continue
         meal = PlannedMeal(
             plan_id=plan.id,

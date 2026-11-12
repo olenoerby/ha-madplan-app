@@ -262,6 +262,9 @@ export interface MealieState {
 }
 
 export interface MealieEntry {
+  id?: string;
+  /** A note has no recipe, and may say anything, such as "eating out". */
+  kind?: "recipe" | "note";
   date: string;
   meal_type: string;
   title: string;
@@ -269,6 +272,13 @@ export interface MealieEntry {
   url: string | null;
   /** Put there by MadPlan, from a plan that no longer exists here. */
   from_madplan: boolean;
+}
+
+export interface PlanPreview {
+  start: string;
+  end: string;
+  days: { date: string; always_skipped: boolean }[];
+  mealie: { connected: boolean; entries: MealieEntry[] };
 }
 
 export interface PlanSummary {

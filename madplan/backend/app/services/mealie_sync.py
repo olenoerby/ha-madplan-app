@@ -591,10 +591,16 @@ def calendar_entries(db: Session, plans: list[MealPlan], household_id: int, star
     for entry in entries:
         if str(entry.get("id")) in known:
             continue
+        # Only the asked-for days, whatever the server sends.
+        if not str(start) <= str(entry.get("date") or "")[:10] <= str(end):
+            continue
         recipe = entry.get("recipe") or {}
         slug = recipe.get("slug")
         results.append(
             {
+                "id": str(entry.get("id")),
+                # A note has no recipe, and may say anything: "eating out" as well as a dish.
+                "kind": "recipe" if entry.get("recipeId") or slug else "note",
                 "date": entry.get("date"),
                 "meal_type": entry.get("entryType"),
                 "title": recipe.get("name") or entry.get("title") or "",
