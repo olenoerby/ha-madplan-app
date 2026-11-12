@@ -766,7 +766,8 @@ def test_a_plan_with_too_few_recipes_searches_for_more(admin_client, db, web, fa
     web.serve(URL)
     model = fake_openai([found(URL)])
     plan = plan_of(admin_client, 1, use_ai=True)
-    assert len(model.calls) == 1
+    # One page kept, of more wanted, so another round was asked for, which the fake did not answer.
+    assert 1 <= len(model.calls) <= new_recipes.MAX_ROUNDS
     assert plan["ai_used"] is True
     assert plan["meals"][0]["link"]["label"] == "madsiden.dk"
 
@@ -1491,3 +1492,48 @@ def test_a_wish_is_enough_without_offers(admin_client, db, web, fake_openai):  #
     assert result["no_offers"] is False
     assert len(model.calls) == 1
     assert "current offers" not in model.calls[0]["instructions"]
+
+
+# Searching in rounds
+
+
+PAGES = [f"https://madsiden.dk/ret-{n}" for n in range(1, 80)]
+DISHES = ["Kyllingegryde med ris", "Tacos med kylling", "Kylling i karry", "Ovnbagt kyllingelår", "Kyllingesalat med pasta", "Thaisuppe med kylling", "Kyllingespyd på grill", "Wok med kylling og nudler"]
+
+
+def test_refused_pages_lead_to_another_round_that_hears_what_failed(admin_client, db, web, fake_openai):  # noqa: F811
+    add_offer(db, "netto", "Kyllingebryst 600 g", 45)
+    # The first round's pages are on a site that holds no recipe data. The second round's are fine.
+    bad = [f"https://ingendata.dk/opskrift-{n}" for n in range(4)]
+    for url in bad:
+        web.serve(url, "<html><body>Ingen opskrift her</body></html>")
+    for name, url in zip(DISHES, PAGES[:6], strict=False):
+        web.serve(url, page(name=name, ingredients=("600 g kyllingebryst", "1 løg")))
+    model = fake_openai([found(*bad), found(*PAGES[:6])])
+    result = search(admin_client, meal_types=["dinner"]).json()
+    assert result["found"] == 6
+    assert result["refused_why"] == {"no_recipe": 4}
+    second = model.calls[1]["instructions"]
+    assert bad[0] in second and "ingendata.dk" in second and "leave them out" in second
+
+
+def test_a_search_stops_after_fifty_pages(admin_client, db, web, fake_openai, monkeypatch):  # noqa: F811
+    add_offer(db, "netto", "Kyllingebryst 600 g", 45)
+    monkeypatch.setattr(new_recipes, "MAX_ROUNDS", 10)
+    # Every page is missing, round after round.
+    rounds = [found(*PAGES[i : i + 20]) for i in range(0, 80, 20)]
+    model = fake_openai(rounds)
+    result = search(admin_client, meal_types=["dinner"]).json()
+    assert result["found"] == 0
+    assert result["refused"] == new_recipes.MAX_PAGES_CHECKED == 50
+    assert len(model.calls) == 3
+
+
+def test_a_search_stops_as_soon_as_it_has_enough(admin_client, db, web, fake_openai):  # noqa: F811
+    add_offer(db, "netto", "Kyllingebryst 600 g", 45)
+    for name, url in zip(DISHES, PAGES[:8], strict=False):
+        web.serve(url, page(name=name, ingredients=("600 g kyllingebryst", "1 løg")))
+    model = fake_openai([found(*PAGES[:8])])
+    result = search(admin_client, meal_types=["dinner"]).json()
+    assert result["found"] == 6
+    assert len(model.calls) == 1

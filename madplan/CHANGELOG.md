@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.8
+
+- When pages are refused, a recipe search asks the AI agent for more, round by round, until it has
+  kept enough (6, or 3 versions of a named dish), has read 50 pages, or has spent 2½ minutes. Each
+  round tells the agent the addresses already tried and the sites that cannot be read, so it looks
+  elsewhere. At most 4 rounds, to keep the tokens down.
+
 ## 1.0.7
 
 - A search for recipes says why each page was refused, such as "may not be read by programs" or
