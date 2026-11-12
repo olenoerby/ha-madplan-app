@@ -110,6 +110,59 @@ def _reader() -> RecipeReader:
     return RecipeReader()
 
 
+# How hard a search tries when pages are refused: more addresses are asked for until enough are
+# kept, this many pages have been read, or the time is up.
+MAX_PAGES_CHECKED = 50
+MAX_ROUNDS = 4
+_SEARCH_SECONDS = 150
+# Refusals that say a whole site cannot be used, so the agent is asked to leave it out.
+_SITE_REFUSALS = {"not_allowed", "no_recipe", "unreachable"}
+
+
+def _search_in_rounds(ask, read, enough) -> int:
+    """Asks for addresses and reads them, round by round, until ``enough()``.
+
+    ``ask(tried, unreadable_sites)`` gives links, ``read(link)`` gives the reason a page was
+    refused, or None. Each round tells the agent what was tried and which sites cannot be read.
+    A failed call after the first round ends the search with what it has. Returns the number of
+    addresses the agent gave.
+    """
+    tried: set[str] = set()
+    tried_urls: list[str] = []
+    unreadable: set[str] = set()
+    links = checked = 0
+    deadline = time.monotonic() + _SEARCH_SECONDS
+
+    def done() -> bool:
+        return enough() or checked >= MAX_PAGES_CHECKED or time.monotonic() > deadline
+
+    for round_number in range(MAX_ROUNDS):
+        if done():
+            break
+        try:
+            found = ask(tried_urls[-60:], sorted(unreadable))
+        except AiUnavailable as exc:
+            if round_number == 0:
+                raise
+            log.info("search round %d could not be made: %s", round_number + 1, exc.reason)
+            break
+        links += len(found)
+        new = [link for link in found if _same_address(link.url) not in tried]
+        if not new:
+            break
+        for link in new:
+            if done():
+                break
+            tried.add(_same_address(link.url))
+            tried_urls.append(link.url)
+            checked += 1
+            reason = read(link)
+            site = domain_of(link.url)
+            if reason in _SITE_REFUSALS and site:
+                unreadable.add(site)
+    return links
+
+
 def find_new_recipes(
     db: Session,
     household: Household,
@@ -136,20 +189,26 @@ def find_new_recipes(
 
     known = list(db.scalars(select(Recipe).where(Recipe.household_id == household.id)))
     titles = [r.title for r in known if r.dismissed_at is None][:_MAX_KNOWN_TITLES]
-    # A few more than wanted, as many pages turn out not to hold a whole recipe.
-    found = search_recipe_pages(household, user, meal_types, count * 2, lines, ctx.profile, titles, locale, wish=wish)
-
-    result = SearchResult(links=len(found))
+    result = SearchResult()
     addresses = {_same_address(r.source_url) for r in known if r.source_url}
-    deadline = time.monotonic() + _READING_SECONDS
+
     with _reader() as reader:
-        for link in found:
-            if len(result.saved) >= count or time.monotonic() > deadline:
-                break
+
+        def ask(tried: list[str], unreadable: list[str]):
+            # What was kept so far is saved first: the AI call logs itself in a session of its
+            # own, and SQLite lets only one write at a time.
+            db.commit()
+            # A few more than are still wanted, as many pages turn out not to hold a whole recipe.
+            want = max(2, (count - len(result.saved)) * 2)
+            return search_recipe_pages(
+                household, user, meal_types, want, lines, ctx.profile, titles, locale, wish=wish, tried=tried, unreadable_sites=unreadable
+            )
+
+        def read(link) -> str | None:
             address = _same_address(link.url)
             if address in addresses:
                 result.refused[ALREADY_KNOWN] += 1
-                continue
+                return ALREADY_KNOWN
             addresses.add(address)
             fallback = link.meal_type if link.meal_type in meal_types else meal_types[0]
             try:
@@ -160,16 +219,20 @@ def find_new_recipes(
                 result.saved.append(saved)
                 # The same dish from another site is not a new one, within a search either.
                 known.append(saved)
+                return None
             except PageRefused as exc:
                 result.refused[exc.reason] += 1
+                return exc.reason
+
+        result.links = _search_in_rounds(ask, read, lambda: len(result.saved) >= count)
     log.info(
         "recipe search for household %d: the AI agent gave %d addresses, kept %d, refused %s",
         household.id,
-        len(found),
+        result.links,
         len(result.saved),
         dict(result.refused),
     )
-    if not found:
+    if not result.links:
         log.warning("the AI agent gave no addresses: it is probably not allowed to search the web")
     return result
 
@@ -205,44 +268,47 @@ def find_dish_online(
     ctx = build_context(db, household, local_today(), user)
     known = list(db.scalars(select(Recipe).where(Recipe.household_id == household.id)))
     by_address = {_same_address(r.source_url): r for r in known if r.source_url}
-    found = search_recipe_pages(household, user, _ANY_MEAL, count * 2, [], ctx.profile, [], locale, dish=dish)
-
-    result = SearchResult(links=len(found))
+    result = SearchResult()
     chosen: list[Recipe] = []
-    seen: set[str] = set()
-    deadline = time.monotonic() + _READING_SECONDS
     with _reader() as reader:
-        for link in found:
-            if len(chosen) >= count or time.monotonic() > deadline:
-                break
+
+        def ask(tried: list[str], unreadable: list[str]):
+            db.commit()
+            want = max(2, (count - len(chosen)) * 2)
+            return search_recipe_pages(household, user, _ANY_MEAL, want, [], ctx.profile, [], locale, dish=dish, tried=tried, unreadable_sites=unreadable)
+
+        def read(link) -> str | None:
             address = _same_address(link.url)
-            if address in seen:
-                continue
-            seen.add(address)
             if address in by_address:
                 # Found before: still one of the choices, unless someone said no thanks to it.
                 again = by_address[address]
-                if again.dismissed_at is None and _is_the_dish(dish, again.title):
+                if again.dismissed_at is None and _is_the_dish(dish, again.title) and again not in chosen:
                     chosen.append(again)
-                continue
+                return None
             fallback = link.meal_type if link.meal_type in _ANY_MEAL else "dinner"
             try:
                 page = reader.read(link.url, fallback)
                 if not _is_the_dish(dish, page.title):
                     raise PageRefused(NOT_THE_DISH, page.url)
                 if _same_address(page.url) in by_address:
-                    chosen.append(by_address[_same_address(page.url)])
-                    continue
+                    again = by_address[_same_address(page.url)]
+                    if again not in chosen:
+                        chosen.append(again)
+                    return None
                 saved = save_page(db, household, page)
                 by_address[_same_address(saved.source_url)] = saved
                 chosen.append(saved)
                 result.saved.append(saved)
+                return None
             except PageRefused as exc:
                 result.refused[exc.reason] += 1
+                return exc.reason
+
+        result.links = _search_in_rounds(ask, read, lambda: len(chosen) >= count)
     log.info(
         "dish search for household %d: the AI agent gave %d addresses, offered %d, refused %s",
         household.id,
-        len(found),
+        result.links,
         len(chosen),
         dict(result.refused),
     )

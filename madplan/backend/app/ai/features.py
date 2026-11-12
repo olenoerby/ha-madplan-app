@@ -46,6 +46,8 @@ def search_recipe_pages(
     locale: str = "da",
     dish: str | None = None,
     wish: str | None = None,
+    tried: list[str] | None = None,
+    unreadable_sites: list[str] | None = None,
 ) -> list[FoundPage]:
     """Asks where real recipes are. A link is all the model can give, as MadPlan reads the pages
     itself and never takes a model's word for what a recipe says."""
@@ -73,6 +75,13 @@ def search_recipe_pages(
         f"Diet: {profile.diet_mode or 'none'}\n"
         f"The household already has these dishes, so find others: {avoid}"
     )
+    if tried:
+        prompt += "\nThese addresses were tried already, so give others: " + "; ".join(tried)
+    if unreadable_sites:
+        prompt += (
+            "\nThese sites cannot be read by programs or hold no structured recipe data, so leave them out: "
+            + ", ".join(unreadable_sites)
+        )
     result: FoundPages = run_agent(
         AgentSpec(
             name="RecipeFinder",
