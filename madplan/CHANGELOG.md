@@ -9,6 +9,11 @@
   Home Assistant. The log says how many addresses it gave.
 - A warning on the admin page, and in the documentation, to check that the AI agent's model supports
   web search, such as gpt-4o-mini.
+- "Plan a particular dish" can search online: type a dish, such as "tomatsuppe", and choose between
+  3 real recipes for it from different sites. Each can be put on a day, or added to Mealie at once.
+  Pages that are another dish are left out.
+- "New recipes" shows every found recipe, also those with nothing on offer this week, so any of
+  them can be planned or added to Mealie. Recipes already in Mealie say so.
 - The calendar has a button to Mealie's own meal planner, and dishes from Mealie link to their
   recipe there. Only with Mealie connected.
 

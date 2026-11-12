@@ -1385,3 +1385,48 @@ def test_no_reminder_once_it_is_sent(admin_client, db, mealie):
     send(admin_client, plan["id"])
     run_worker(db)
     assert remind_unsent(db) == 0
+
+
+# A particular dish, found online
+
+
+SOUPS = [f"https://madsiden.dk/tomatsuppe-{n}" for n in range(1, 5)]
+
+
+def test_a_dish_can_be_found_online_in_three_versions(admin_client, db, web, fake_openai):  # noqa: F811
+    for n, url in enumerate(SOUPS[:3], start=1):
+        web.serve(url, page(name=f"Tomatsuppe nr. {n}", ingredients=("1 kg tomater", "1 løg", "1 l bouillon")))
+    web.serve(SOUPS[3], page(name="Linsesuppe", ingredients=("300 g røde linser", "1 løg")))
+    model = fake_openai([found(SOUPS[3], *SOUPS[:3])])
+    response = admin_client.post("/api/v1/new-recipes/dish", json={"dish": "tomatsuppe"})
+    assert response.status_code == 200, response.text
+    result = response.json()
+    assert [r["title"] for r in result["recipes"]] == ["Tomatsuppe nr. 1", "Tomatsuppe nr. 2", "Tomatsuppe nr. 3"]
+    # A lentil soup is not a tomato soup, whatever the model thought.
+    assert result["refused_why"] == {"not_the_dish": 1}
+    # The model was asked for that dish, as data, and for different versions.
+    assert "tomatsuppe" in model.calls[0]["instructions"] and "different version" in model.calls[0]["instructions"]
+    # Kept, so they can be planned or added to Mealie like any found recipe.
+    assert db.scalar(select(Recipe).where(Recipe.title == "Tomatsuppe nr. 2")).source == "web"
+
+
+def test_a_dish_found_before_is_offered_again(admin_client, db, web, fake_openai):  # noqa: F811
+    web_recipe(db, title="Tomatsuppe med basilikum", url=SOUPS[0])
+    db.commit()
+    fake_openai([found(SOUPS[0])])
+    result = admin_client.post("/api/v1/new-recipes/dish", json={"dish": "tomatsuppe"}).json()
+    assert [r["title"] for r in result["recipes"]] == ["Tomatsuppe med basilikum"]
+    assert len(db.scalars(select(Recipe).where(Recipe.source_url == SOUPS[0])).all()) == 1
+
+
+def test_every_found_recipe_can_be_seen_and_added_to_mealie(admin_client, db, mealie):
+    # Nothing in it is on offer this week, and it is still on the page, below those that are.
+    recipe = web_recipe(db, title="Tomatsuppe", url=URL)
+    db.commit()
+    page_data = admin_client.get("/api/v1/new-recipes").json()
+    assert [r["title"] for r in page_data["others"]] == ["Tomatsuppe"]
+    assert page_data["others"][0]["offers"] == []
+    mealie.imports[URL] = good_remote(title="Tomatsuppe")
+    response = admin_client.post(f"/api/v1/new-recipes/{recipe.id}/to-mealie")
+    assert response.status_code == 200, response.text
+    assert response.json()["link"]["kind"] == "mealie"

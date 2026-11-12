@@ -162,6 +162,7 @@ Nothing has yet been tried on a real Home Assistant installation.
 | "Buy more toilet paper?", food waste, budget, "less than last year" | Works | Test |
 | Assistant, with a simple answer without AI. It can offer to do things, and nothing happens until someone presses | Works | Test, and browser with a stand-in answer |
 | New recipes page, and a weekly search for recipes that use what is on offer | Works, the search with an AI agent | Test |
+| Search online for a particular dish, and choose between 3 real recipes for it. Any found recipe can be added to Mealie, also without planning it | Works, with an AI agent that can search | Test, and browser for the page (the search itself against a stand-in) |
 | Download your data, and delete your user | Works | Test |
 
 ## Documentation

@@ -323,10 +323,22 @@ export interface NewRecipeCard {
   offers: { ingredient: string; offer: string; store: string; price: number; before: number | null; membership: boolean }[];
   more_offers: number;
   disliked: string[];
+  /** Already a recipe in Mealie. */
+  in_mealie?: boolean;
+}
+
+export interface DishSearchResult {
+  recipes: NewRecipeCard[];
+  refused: number;
+  refused_why: Record<string, number>;
+  links: number;
+  mealie_connected: boolean;
 }
 
 export interface NewRecipes {
   recipes: NewRecipeCard[];
+  /** Found recipes with nothing on offer now. */
+  others?: NewRecipeCard[];
   waiting_for_offers: number;
   offers_known: boolean;
   search_blocked: string | null;

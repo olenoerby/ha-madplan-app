@@ -1292,3 +1292,9 @@ th.num {
 .plan-day-actions:empty {
   display: none;
 }
+
+.section-title {
+  margin: 12px 0 0;
+  font-size: 1.05rem;
+  font-weight: 650;
+}
