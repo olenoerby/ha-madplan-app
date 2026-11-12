@@ -343,7 +343,7 @@ function CreatePlan({ onClose, onCreated }: { onClose: () => void; onCreated: (p
       <Check label={t("plan.useAi")} hint={t("plan.useAiHint")} checked={useAi} onChange={setUseAi} />
       {noRecipes && (
         <Notice kind="warning">
-          {t("plan.noRecipes")} <Link href="/recipes">{t("plan.findMore")}</Link>
+          {t(me.setup.mealie ? "plan.noRecipesMealie" : "plan.noRecipes")} <Link href="/recipes">{t("plan.findMore")}</Link>
         </Notice>
       )}
       <div className="row">

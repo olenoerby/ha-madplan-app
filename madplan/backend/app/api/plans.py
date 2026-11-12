@@ -9,7 +9,7 @@ from typing import Literal
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.ai.engine import AiUnavailable
@@ -266,6 +266,30 @@ def _mealie_in_period(db: Session, household_id: int, first: date, last: date) -
     return calendar_entries(db, plans, household_id, first, last, ignore={str(n) for n in guest_notes})
 
 
+def _first_recipes_from_mealie(db: Session, household_id: int) -> None:
+    """Mealie's recipes, now, if none have been read yet.
+
+    The background jobs read them every few minutes, but right after Mealie is connected the first
+    plan should not have to wait for that.
+    """
+    from app.integrations.mealie import MealieError
+    from app.services.mealie_sync import pull_recipes
+
+    known = db.scalar(select(func.count(Recipe.id)).where(Recipe.household_id == household_id, Recipe.mealie_slug.is_not(None)))
+    if known:
+        return
+    client = mealie_client(db, household_id)
+    if client is None:
+        return
+    try:
+        with client:
+            added = pull_recipes(db, household_id, client)
+        log.info("read %d recipes from Mealie for the first plan", added)
+    except MealieError as exc:
+        db.rollback()
+        log.warning("could not read recipes from Mealie: %s", exc)
+
+
 def _take_from_mealie(db: Session, household_id: int) -> None:
     """Brings Mealie's own dishes onto the new plan now, rather than at the next reading."""
     from app.integrations.mealie import MealieError
@@ -329,6 +353,7 @@ def create_plan(payload: PlanIn, user: CurrentUser, db: Db) -> dict:
     meal_types = list(payload.meal_types or hs.default_meal_types)
     if not meal_types:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "no_meal_types")
+    _first_recipes_from_mealie(db, household.id)
 
     extra: list[Recipe] = []
     ai_note = None

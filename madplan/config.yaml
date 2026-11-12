@@ -1,5 +1,5 @@
 name: MadPlan
-version: "1.0.4"
+version: "1.0.5"
 slug: madplan
 description: Meal plans from this week's Danish supermarket offers, with voting, shopping lists, a pantry and an optional Mealie.
 url: https://github.com/olenoerby/ha-madplan-app

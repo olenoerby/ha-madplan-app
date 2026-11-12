@@ -91,7 +91,7 @@ function SetupTab() {
   const { t } = useI18n();
   const { data: setup } = useApi<AppSetup>("/admin/setup");
   const { run, busy } = useAction();
-  const [results, setResults] = useState<Record<string, { ok: boolean; version?: string; error?: string }> | null>(null);
+  const [results, setResults] = useState<Record<string, { ok: boolean; version?: string; error?: string; recipes?: number }> | null>(null);
   if (!setup) return <Loading />;
   const off = t("admin.setup.notSet");
   return (
@@ -132,7 +132,7 @@ function SetupTab() {
           <Button
             disabled={busy}
             onClick={() =>
-              void run(async () => setResults(await api<Record<string, { ok: boolean; version?: string; error?: string }>>("/admin/setup/test", { method: "POST" })))
+              void run(async () => setResults(await api<Record<string, { ok: boolean; version?: string; error?: string; recipes?: number }>>("/admin/setup/test", { method: "POST" })))
             }
           >
             {t("admin.setup.test")}
@@ -140,7 +140,13 @@ function SetupTab() {
         </div>
         {results &&
           Object.entries(results).map(([name, result]) => (
-            <SetupRow key={name} label={name === "mealie" ? "Mealie" : "Home Assistant"} value={result.ok ? result.version ?? "OK" : result.error === "not_configured" ? off : result.error ?? ""} ok={result.ok} />
+            <SetupRow key={name} label={name === "mealie" ? "Mealie" : "Home Assistant"} value={
+                result.ok
+                  ? [result.version ?? "OK", result.recipes !== undefined ? t("admin.setup.recipes", { count: result.recipes }) : null].filter(Boolean).join(" · ")
+                  : result.error === "not_configured"
+                    ? off
+                    : (result.error ?? "")
+              } ok={result.ok} />
           ))}
       </Card>
     </>

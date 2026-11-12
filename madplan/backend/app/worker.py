@@ -200,8 +200,12 @@ def job_cleanup(db: Session) -> None:
         db.execute(delete(Notification).where(Notification.created_at < now - timedelta(days=schedule.notification_retention_days)))
 
 
-def run_due_jobs(now: datetime | None = None) -> list[str]:
-    """One pass over the schedule. Each job gets its own transaction, so one failing is contained."""
+def run_due_jobs(now: datetime | None = None, only: Callable[[str], bool] | None = None) -> list[str]:
+    """One pass over the schedule. Each job gets its own transaction, so one failing is contained.
+
+    ``only`` picks the jobs to consider, so that the crawl, which takes many minutes at a polite
+    pace, can run on its own and hold up nothing else.
+    """
     now = now or utcnow()
     with session_scope() as db:
         schedule = get_schedule(db)
@@ -249,7 +253,7 @@ def run_due_jobs(now: datetime | None = None) -> list[str]:
     ]
     ran: list[str] = []
     for name, due, job in jobs:
-        if not due:
+        if not due or (only is not None and not only(name)):
             continue
         try:
             with session_scope() as db:
@@ -264,17 +268,20 @@ def run_due_jobs(now: datetime | None = None) -> list[str]:
 def run_in_background(stop: threading.Event) -> threading.Thread:
     """The jobs, in a thread of the web server's process. One process is all the app runs."""
 
-    def loop() -> None:
-        log.info("background jobs started")
+    def loop(name: str, only: Callable[[str], bool]) -> None:
+        log.info("%s started", name)
         while not stop.is_set():
             try:
-                run_due_jobs()
+                run_due_jobs(only=only)
             except Exception:
-                log.exception("background jobs failed, and will try again")
+                log.exception("%s failed, and will try again", name)
             stop.wait(TICK_SECONDS)
-        log.info("background jobs stopped")
+        log.info("%s stopped", name)
 
-    thread = threading.Thread(target=loop, name="madplan-jobs", daemon=True)
+    # The crawl takes many minutes. Mealie, messages and the rest must not wait for it.
+    crawl = threading.Thread(target=loop, args=("crawling", lambda job: job == "crawl"), name="madplan-crawl", daemon=True)
+    crawl.start()
+    thread = threading.Thread(target=loop, args=("background jobs", lambda job: job != "crawl"), name="madplan-jobs", daemon=True)
     thread.start()
     return thread
 

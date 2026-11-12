@@ -530,9 +530,9 @@ def pull_recipes(db: Session, household_id: int, client: MealieClient, max_recip
                 listed.add(slug)
             if not slug or slug in known or summary.get("name") in titles:
                 continue
-            remote = client.get_recipe(slug)
-            db.add(
-                Recipe(
+            try:
+                remote = client.get_recipe(slug)
+                recipe = Recipe(
                     household_id=household_id,
                     source="mealie",
                     title=(remote.get("name") or slug)[:200],
@@ -546,7 +546,14 @@ def pull_recipes(db: Session, household_id: int, client: MealieClient, max_recip
                     mealie_slug=slug,
                     mealie_id=remote.get("id"),
                 )
-            )
+            except MealieError as exc:
+                log.warning("could not read the recipe %s from Mealie: %s", slug, exc)
+                continue
+            except (TypeError, ValueError, AttributeError) as exc:
+                # One odd recipe should not keep all the others out of the plans.
+                log.warning("could not understand the recipe %s from Mealie: %s", slug, exc)
+                continue
+            db.add(recipe)
             added += 1
         db.commit()
         if page >= (batch.get("total_pages") or 1):

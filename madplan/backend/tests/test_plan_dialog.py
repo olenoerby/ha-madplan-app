@@ -11,12 +11,19 @@ from app.core.db import local_today
 from app.services import app_settings
 
 from .conftest import set_options
-from .test_new_recipes import FakeMealie, only_real_recipes, plan_of, web_recipe
+from .test_new_recipes import FakeMealie, good_remote, only_real_recipes, plan_of, web_recipe
+
+
+class MealieThatSaysItsVersion(FakeMealie):
+    def handler(self, request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/app/about":
+            return httpx.Response(200, json={"version": "v3.30.0"})
+        return super().handler(request)
 
 
 @pytest.fixture
 def mealie(monkeypatch):
-    fake = FakeMealie()
+    fake = MealieThatSaysItsVersion()
     real = app_settings.MealieClient
     monkeypatch.setattr(app_settings, "MealieClient", lambda url, token: real(url, token, transport=httpx.MockTransport(fake.handler)))
     set_options(mealie_url="http://mealie:9000", mealie_token="t")
@@ -116,3 +123,41 @@ def test_no_notes_in_mealie_without_mealie(admin_client):
     response = admin_client.post("/api/v1/mealie/notes", json={"date": local_today().isoformat(), "title": "Spiser ude"})
     assert response.status_code == 409
     assert response.json()["detail"] == "mealie_not_configured"
+
+
+# Right after Mealie is connected
+
+
+def test_the_first_plan_reads_mealies_recipes_without_waiting_for_the_jobs(admin_client, db, mealie):
+    only_real_recipes(db)
+    for title in ("Lasagne", "Fiskefrikadeller"):
+        remote = good_remote(title=title)
+        mealie.recipes[remote["slug"]] = remote
+    # One Mealie cannot make sense of keeps none of the others out.
+    broken = good_remote(title="Mærkelig")
+    broken["recipeIngredient"] = None
+    broken["recipeInstructions"] = [None]
+    mealie.recipes[broken["slug"]] = broken
+    plan = plan_of(admin_client, days=2)
+    assert {m["title"] for m in plan["meals"]} <= {"Lasagne", "Fiskefrikadeller"}
+    assert len(plan["meals"]) == 2
+
+
+def test_the_connection_test_reads_the_recipes_and_says_how_many(admin_client, mealie):
+    remote = good_remote(title="Lasagne")
+    mealie.recipes[remote["slug"]] = remote
+    result = admin_client.post("/api/v1/admin/setup/test").json()["mealie"]
+    assert result == {"ok": True, "version": "v3.30.0", "recipes": 1}
+
+
+def test_the_crawl_runs_apart_from_the_other_jobs(monkeypatch):
+    from app import worker
+
+    calls = []
+    monkeypatch.setattr(worker, "job_crawl", lambda db: calls.append("crawl"))
+    monkeypatch.setattr(worker, "job_mealie_pull", lambda db: calls.append("mealie_pull"))
+    assert "crawl" not in worker.run_due_jobs(only=lambda job: job != "crawl")
+    assert "mealie_pull" in calls and "crawl" not in calls
+    calls.clear()
+    assert worker.run_due_jobs(only=lambda job: job == "crawl") == ["crawl"]
+    assert calls == ["crawl"]

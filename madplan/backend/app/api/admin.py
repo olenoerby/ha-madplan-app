@@ -16,9 +16,9 @@ from app.api.deps import AdminUser, Db
 from app.core import ha
 from app.crawlers.sources import SOURCES, all_source_infos
 from app.integrations.mealie import MealieError
-from app.models import AppSetting, CrawlRun, CrawlSource, Offer, User
+from app.models import AppSetting, CrawlRun, CrawlSource, Offer, Recipe, User
 from app.services.app_settings import get_schedule, mealie_client
-from app.services.mealie_sync import remember_group
+from app.services.mealie_sync import pull_recipes, remember_group
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -99,7 +99,10 @@ def test_setup(admin: AdminUser, db: Db) -> dict:
                 info = client.about()
                 remember_group(db, admin.household_id, client)
                 db.commit()
-            results["mealie"] = {"ok": True, "version": info.get("version")}
+                # Reads any recipes not read yet, so a plan can be made right after connecting.
+                pull_recipes(db, admin.household_id, client)
+            recipes = db.scalar(select(func.count(Recipe.id)).where(Recipe.household_id == admin.household_id, Recipe.mealie_slug.is_not(None)))
+            results["mealie"] = {"ok": True, "version": info.get("version"), "recipes": recipes}
         except MealieError as exc:
             results["mealie"] = {"ok": False, "error": str(exc)[:300]}
     try:

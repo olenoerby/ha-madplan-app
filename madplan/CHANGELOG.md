@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.5
+
+- Mealie's recipes are read when the first plan is made, and when the connection is tested on the
+  admin page, which says how many there are. They no longer wait for the first crawl of offers.
+- The crawl of offers runs apart from the other jobs, so sending to Mealie and reading from it never
+  wait for it.
+- One recipe in Mealie that cannot be read no longer keeps the others out.
+- When Mealie is connected and no recipe fits, the message says so, and what to check.
+
 ## 1.0.4
 
 - "New meal plan" shows the days the plan covers, as a small calendar, and each can be skipped.
