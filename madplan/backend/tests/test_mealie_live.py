@@ -460,7 +460,8 @@ def test_entries_made_in_mealie_show_on_our_calendar(admin_client, configured, m
 def test_connection_test_on_the_admin_page(admin_client, configured):
     result = admin_client.post("/api/v1/admin/setup/test").json()
     assert result["mealie"]["ok"] is True
-    assert result["home_assistant"] == {"ok": False, "error": "not_configured"}
+    # Home Assistant is always there for the app, through the Supervisor.
+    assert result["home_assistant"]["ok"] is True
 
 
 def test_the_token_never_reaches_the_browser(admin_client, db, configured):
