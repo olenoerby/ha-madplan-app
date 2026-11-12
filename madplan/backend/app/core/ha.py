@@ -141,10 +141,14 @@ def ha_config() -> dict:
     return config
 
 
+def app_language(language: str | None) -> str:
+    """MadPlan's language for one of Home Assistant's: Danish for Danish, English for the rest."""
+    return "da" if str(language or "").lower().startswith("da") else "en"
+
+
 def ha_language() -> str:
-    """Danish when Home Assistant is in Danish, English otherwise."""
-    language = str(ha_config().get("language") or "").lower()
-    return "da" if language.startswith("da") else "en"
+    """Home Assistant's system language, for when a person's own is not known."""
+    return app_language(ha_config().get("language"))
 
 
 def _websocket_command(command: dict) -> Any:

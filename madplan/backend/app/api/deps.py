@@ -27,6 +27,8 @@ Db = Annotated[Session, Depends(get_db)]
 USER_ID_HEADER = "x-remote-user-id"
 USER_NAME_HEADER = "x-remote-user-name"
 DISPLAY_NAME_HEADER = "x-remote-user-display-name"
+# The language of the person's own Home Assistant profile, as the frontend finds it.
+LANGUAGE_HEADER = "x-madplan-language"
 # What MadPlan's own roles can be, besides admin, which follows Home Assistant.
 LOCAL_ROLES = ("household_manager", "user", "guest")
 
@@ -68,8 +70,13 @@ def _unique_username(db: Session, wanted: str, ha_user_id: str) -> str:
     return name
 
 
-def user_from_ingress(db: Session, ha_user_id: str, username: str | None, display_name: str | None) -> User:
-    """The MadPlan user for a Home Assistant user, made the first time they open the app."""
+def user_from_ingress(db: Session, ha_user_id: str, username: str | None, display_name: str | None, language: str | None = None) -> User:
+    """The MadPlan user for a Home Assistant user, made the first time they open the app.
+
+    ``language`` is the person's own language in Home Assistant, which can differ from the
+    system's. A request without it, such as a download link, leaves the language as it was, and
+    someone new starts in the system's.
+    """
     user = db.scalar(select(User).where(User.ha_user_id == ha_user_id))
     if user is None:
         user = User(
@@ -77,7 +84,7 @@ def user_from_ingress(db: Session, ha_user_id: str, username: str | None, displa
             ha_user_id=ha_user_id,
             username=_unique_username(db, username or display_name or "", ha_user_id),
             display_name=(display_name or username or "Home Assistant")[:120],
-            locale=ha.ha_language(),
+            locale=ha.app_language(language) if language else ha.ha_language(),
             role="user",
             settings={},
         )
@@ -85,8 +92,9 @@ def user_from_ingress(db: Session, ha_user_id: str, username: str | None, displa
         db.flush()
     elif display_name and user.display_name != display_name[:120]:
         user.display_name = display_name[:120]
-    # Danish when Home Assistant is in Danish, English otherwise.
-    user.locale = ha.ha_language()
+    # Danish when the person has Home Assistant in Danish, English otherwise. Kept for messages.
+    if language:
+        user.locale = ha.app_language(language)
     # The admin role follows Home Assistant. When Home Assistant cannot be asked, it stays as it was.
     admins = ha.ha_admin_ids()
     if admins is not None:
@@ -115,7 +123,13 @@ def current_user(request: Request, db: Db) -> User:
     if user is None and _through_ingress(request):
         ha_user_id = request.headers.get(USER_ID_HEADER)
         if ha_user_id:
-            user = user_from_ingress(db, ha_user_id, request.headers.get(USER_NAME_HEADER), request.headers.get(DISPLAY_NAME_HEADER))
+            user = user_from_ingress(
+                db,
+                ha_user_id,
+                request.headers.get(USER_NAME_HEADER),
+                request.headers.get(DISPLAY_NAME_HEADER),
+                request.headers.get(LANGUAGE_HEADER),
+            )
     if user is None or not user.is_active:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "not_authenticated")
     # One check for every route, so a new route is closed to guests unless listed above.

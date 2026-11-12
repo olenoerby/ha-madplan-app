@@ -12,7 +12,9 @@ This is a **Home Assistant app** (formerly called an add-on). It needs **Home As
 Supervised installation, as apps run under the Supervisor. It does not run on Home Assistant
 Container or Core.
 
-The app is in Danish when Home Assistant is, and in English otherwise.
+The app is in Danish for people who use Home Assistant in Danish, and in English otherwise. It
+follows each person's own language in their profile, and Home Assistant's system language until it
+knows it.
 
 ## Installing
 
@@ -100,7 +102,7 @@ Nothing has yet been tried on a real Home Assistant installation.
 | People are Home Assistant's users, and only the Supervisor may say who someone is | Works | Test, and a direct request is refused in the browser run |
 | Home Assistant's administrators are MadPlan's, and the role follows changes there | Works | Test and browser |
 | Household manager and guest roles, set in the app | Works | Test |
-| Danish when Home Assistant is in Danish, English otherwise | Works | Test and browser |
+| Each person's own Home Assistant language: Danish when it is Danish, English otherwise | Works | Test. The system language also in the browser run. The profile language reported wrong on a real installation in 1.0.0 and fixed in 1.0.1, not yet confirmed there |
 | Configuration on the app's tab in Home Assistant, shown and checked on the admin page | Works | Test and browser. Home Assistant's own form not seen yet |
 | AI through a chosen AI Task entity | Works | Test and browser, with a stand-in answer. Not with a real entity yet |
 | Photos (receipts, the cupboard) to the AI agent | Built | Test. Not with a real entity yet |

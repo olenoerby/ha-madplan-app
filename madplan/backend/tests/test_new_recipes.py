@@ -1074,12 +1074,8 @@ def test_guests_get_a_note_of_their_own_in_mealies_planner(admin_client, db, mea
     assert note["date"] == mealie.dishes[0]["date"]
 
 
-def test_the_note_follows_home_assistants_language(admin_client, db, mealie, home_assistant):
-    from app.core import ha
-
-    home_assistant.language = "en"
-    ha.forget_cached_answers()
-    admin_client.get("/api/v1/auth/me")
+def test_the_note_follows_the_persons_language(admin_client, db, mealie):
+    admin_client.headers["X-MadPlan-Language"] = "en"
     send_with_guests(admin_client, db, mealie, adults=1, children=2)
     assert mealie.notes[0]["title"] == "Guests: 1 adult and 2 children"
     assert mealie.dishes[0]["text"] == "From MadPlan"

@@ -4,8 +4,8 @@ MadPlan makes meal plans from this week's Danish supermarket offers. The househo
 dishes, the shopping list buys at the cheapest store, and the pantry keeps track of what is at home.
 
 Open it from the sidebar. Everyone who can see it there is in the household, and Home Assistant's
-administrators are its administrators. It speaks Danish when Home Assistant does, and English
-otherwise.
+administrators are its administrators. It speaks Danish to those who
+use Home Assistant in Danish, following the language in their own profile, and English otherwise.
 
 ## Setting it up
 

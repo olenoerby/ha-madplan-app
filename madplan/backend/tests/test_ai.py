@@ -166,11 +166,8 @@ def test_allergies_and_language_reach_the_agent(admin_client, db, fake_openai, h
     ask(admin_client, "?")
     instructions = model.calls[0]["instructions"]
     assert "nødder" in instructions and "koriander" in instructions and "Danish" in instructions
-    # The language follows Home Assistant's.
-    home_assistant.language = "en"
-    from app.core import ha
-
-    ha.forget_cached_answers()
+    # The language follows the person's own in Home Assistant.
+    admin_client.headers["X-MadPlan-Language"] = "en"
     fake_openai([answer("x")])
     ask(admin_client, "?")
     assert "English" in model.calls[1]["instructions"]
@@ -229,11 +226,8 @@ def test_local_budget_answer_uses_the_figure_asked_about(admin_client):
     assert "holder ikke" in answer
 
 
-def test_local_answers_in_english_too(admin_client, home_assistant):
-    from app.core import ha
-
-    home_assistant.language = "en"
-    ha.forget_cached_answers()
+def test_local_answers_in_english_too(admin_client):
+    admin_client.headers["X-MadPlan-Language"] = "en"
     assert "Nothing" in ask(admin_client, "What is about to expire?")["answer"]
 
 

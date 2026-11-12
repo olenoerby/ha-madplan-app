@@ -426,14 +426,32 @@ def test_settings_round_trip_and_stay_separate(admin_client, db):
     assert admin_client.get("/api/v1/me/settings").json()["dislikes"] == []
 
 
-def test_the_language_follows_home_assistant(admin_client, home_assistant):
+def test_a_new_person_starts_in_home_assistants_system_language(db, home_assistant):
     from app.core import ha
 
-    assert admin_client.get("/api/v1/auth/me").json()["locale"] == "da"
-    for language, expected in (("en", "en"), ("de", "en"), ("da-DK", "da")):
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+    from tests.conftest import ingress_headers
+
+    for ha_user_id, language, expected in (("ha-new-1", "da-DK", "da"), ("ha-new-2", "de", "en")):
         home_assistant.language = language
         ha.forget_cached_answers()
-        assert admin_client.get("/api/v1/auth/me").json()["locale"] == expected
+        with TestClient(app) as newcomer:
+            assert newcomer.get("/api/v1/auth/me", headers=ingress_headers(ha_user_id, ha_user_id)).json()["locale"] == expected
+
+
+def test_the_language_follows_the_persons_own_home_assistant_profile(admin_client, home_assistant):
+    from app.core import ha
+
+    # The system is in English, but this person has chosen Danish for themselves.
+    home_assistant.language = "en"
+    ha.forget_cached_answers()
+    for language, expected in (("da", "da"), ("en-GB", "en"), ("de", "en"), ("da-DK", "da")):
+        me = admin_client.get("/api/v1/auth/me", headers={"X-MadPlan-Language": language}).json()
+        assert me["locale"] == expected
+    # A request without it, such as a download link, leaves it as it was.
+    assert admin_client.get("/api/v1/auth/me").json()["locale"] == "da"
 
 
 def test_user_can_override_the_households_stores(admin_client, db):

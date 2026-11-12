@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1
+
+- The app follows each person's own language in their Home Assistant profile, not only the
+  system language.
+
 ## 1.0.0
 
 - MadPlan as a Home Assistant app: opens in the sidebar, with Home Assistant's users, administrators
