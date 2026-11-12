@@ -4,6 +4,9 @@
 
 - A change of language in a person's own Home Assistant profile reaches MadPlan within a couple of
   seconds, also while it is open, and MadPlan starts in that language without a Danish flash.
+- When the AI agent comes back with no recipe pages, or only ones that do not exist, the "New
+  recipes" page says that it must be allowed to search the web, and where to switch that on in
+  Home Assistant. The log says how many addresses it gave.
 
 ## 1.0.5
 

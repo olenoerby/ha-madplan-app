@@ -459,6 +459,14 @@ def test_no_offers_means_no_search_and_no_cost(admin_client, db, web, fake_opena
     assert model.calls == []
 
 
+def test_no_addresses_at_all_is_reported_so_web_search_can_be_switched_on(admin_client, db, web, fake_openai):  # noqa: F811
+    # An AI Task that may not search the web honestly finds nothing.
+    add_offer(db, "netto", "Kyllingebryst 600 g", 45)
+    fake_openai([found()])
+    result = search(admin_client).json()
+    assert (result["found"], result["refused"], result["links"]) == (0, 0, 0)
+
+
 def test_the_search_is_told_what_is_on_offer_and_what_must_not_be_in_it(admin_client, db, web, fake_openai):  # noqa: F811
     set_household(db, allergies=["nødder"])
     add_offer(db, "netto", "Kyllingebryst 600 g", 45)

@@ -339,6 +339,8 @@ export interface RecipeSearchResult {
   refused: number;
   refused_why: Record<string, number>;
   no_offers: boolean;
+  /** Addresses the AI agent gave. None usually means it may not search the web. */
+  links?: number;
 }
 
 export interface Offer {

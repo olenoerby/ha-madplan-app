@@ -54,7 +54,7 @@ def search(payload: SearchIn, user: CurrentUser, db: Db) -> dict:
     except AiUnavailable as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, f"ai_unavailable:{exc.reason}") from exc
     db.commit()
-    return {"found": len(result.saved), "refused": sum(result.refused.values()), "refused_why": dict(result.refused), "no_offers": result.no_offers}
+    return {"found": len(result.saved), "refused": sum(result.refused.values()), "refused_why": dict(result.refused), "no_offers": result.no_offers, "links": result.links}
 
 
 class LinkIn(BaseModel):

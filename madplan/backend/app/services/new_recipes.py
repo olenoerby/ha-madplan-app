@@ -56,6 +56,8 @@ class SearchResult:
     saved: list[Recipe] = field(default_factory=list)
     refused: Counter = field(default_factory=Counter)
     no_offers: bool = False
+    # How many addresses the AI agent gave. None at all usually means it could not search the web.
+    links: int = 0
 
 
 def _same_address(url: str | None) -> str:
@@ -132,7 +134,7 @@ def find_new_recipes(
     # A few more than wanted, as many pages turn out not to hold a whole recipe.
     found = search_recipe_pages(household, user, meal_types, count * 2, lines, ctx.profile, titles, locale)
 
-    result = SearchResult()
+    result = SearchResult(links=len(found))
     addresses = {_same_address(r.source_url) for r in known if r.source_url}
     deadline = time.monotonic() + _READING_SECONDS
     with _reader() as reader:
@@ -155,7 +157,15 @@ def find_new_recipes(
                 known.append(saved)
             except PageRefused as exc:
                 result.refused[exc.reason] += 1
-    log.info("recipe search for household %d kept %d, refused %s", household.id, len(result.saved), dict(result.refused))
+    log.info(
+        "recipe search for household %d: the AI agent gave %d addresses, kept %d, refused %s",
+        household.id,
+        len(found),
+        len(result.saved),
+        dict(result.refused),
+    )
+    if not found:
+        log.warning("the AI agent gave no addresses: it is probably not allowed to search the web")
     return result
 
 

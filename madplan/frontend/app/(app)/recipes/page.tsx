@@ -82,6 +82,9 @@ export default function NewRecipesPage() {
 function SearchOutcome({ result }: { result: RecipeSearchResult }) {
   const { t } = useI18n();
   if (result.no_offers) return <Notice>{t("recipes.result.noOffers")}</Notice>;
+  // No address at all, or only addresses that led nowhere: the agent did not search the web.
+  const guessed = result.found === 0 && result.refused > 0 && Object.keys(result.refused_why).every((why) => why === "unreachable" || why === "no_recipe");
+  if (result.links === 0 || guessed) return <Notice kind="warning">{t("recipes.result.noSearch")}</Notice>;
   return (
     <Notice kind={result.found > 0 ? "good" : undefined}>
       {t("recipes.result.found", { count: result.found })}
