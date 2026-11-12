@@ -118,8 +118,11 @@ def find_new_recipes(
     count: int,
     day: date | None = None,
     locale: str = "da",
+    wish: str | None = None,
 ) -> SearchResult:
     """Searches for pages, reads them, and keeps those that hold a whole recipe.
+
+    ``wish`` is what a person asked for in their own words, such as "something with chicken".
 
     Raises AiUnavailable when no search can be made. Without offers there is nothing to search
     around, so no money is spent.
@@ -127,13 +130,14 @@ def find_new_recipes(
     day = day or local_today()
     ctx = build_context(db, household, day, user)
     lines = offer_lines(ctx)
-    if not lines:
+    # Offers are what an open search goes by. A person saying what they want is enough on its own.
+    if not lines and not wish:
         return SearchResult(no_offers=True)
 
     known = list(db.scalars(select(Recipe).where(Recipe.household_id == household.id)))
     titles = [r.title for r in known if r.dismissed_at is None][:_MAX_KNOWN_TITLES]
     # A few more than wanted, as many pages turn out not to hold a whole recipe.
-    found = search_recipe_pages(household, user, meal_types, count * 2, lines, ctx.profile, titles, locale)
+    found = search_recipe_pages(household, user, meal_types, count * 2, lines, ctx.profile, titles, locale, wish=wish)
 
     result = SearchResult(links=len(found))
     addresses = {_same_address(r.source_url) for r in known if r.source_url}

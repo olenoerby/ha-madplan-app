@@ -19,31 +19,22 @@ export default function NewRecipesPage() {
   const [filter, setFilter] = useState<Filter>("all");
   const { data, reload, error } = useApi<NewRecipes>(filter === "all" ? "/new-recipes" : `/new-recipes?meal_type=${filter}`);
   const [result, setResult] = useState<RecipeSearchResult | null>(null);
+  const [wish, setWish] = useState("");
   const { busy: searching, run: runSearch } = useAction();
 
-  const search = () =>
+  const search = (event?: FormEvent) => {
+    event?.preventDefault();
     void runSearch(async () => {
-      setResult(await api<RecipeSearchResult>("/new-recipes/search", { body: { meal_types: filter === "all" ? null : [filter] } }));
+      setResult(await api<RecipeSearchResult>("/new-recipes/search", { body: { meal_types: filter === "all" ? null : [filter], wish: wish.trim() || null } }));
       await reload();
     });
+  };
 
   return (
     <>
       <PageHead
         title={t("recipes.title")}
         subtitle={t(me.setup.mealie ? "recipes.subtitle" : "recipes.subtitleNoMealie")}
-        actions={
-          <Button
-            variant="primary"
-            working={searching}
-            workingTexts={[t("working.recipes1"), t("working.reading"), t("working.minute")]}
-            disabled={!data || Boolean(data.search_blocked)}
-            onClick={search}
-          >
-            <Icon name="sparkle" />
-            {t("recipes.search")}
-          </Button>
-        }
       />
 
       {data?.search_blocked && <Notice>{t(`recipes.blocked.${data.search_blocked}` as TranslationKey)}</Notice>}
@@ -58,6 +49,29 @@ export default function NewRecipesPage() {
         onChange={setFilter}
         options={[{ value: "all" as Filter, label: t("recipes.all") }, ...MEALS.map((value) => ({ value: value as Filter, label: t(`meal.${value}` as TranslationKey) }))]}
       />
+
+      {/* A search for the tab that is open, with room to say what to look for. */}
+      <form className="row tab-search" onSubmit={search}>
+        <input
+          className="grow"
+          style={{ flexBasis: 220 }}
+          maxLength={120}
+          aria-label={t("recipes.wishLabel")}
+          placeholder={t(`recipes.wish.${filter}` as TranslationKey)}
+          value={wish}
+          onChange={(e) => setWish(e.target.value)}
+        />
+        <Button
+          type="submit"
+          variant="primary"
+          working={searching}
+          workingTexts={[t("working.recipes1"), t("working.reading"), t("working.minute")]}
+          disabled={!data || Boolean(data.search_blocked)}
+        >
+          <Icon name="sparkle" />
+          {t(`recipes.searchFor.${filter}` as TranslationKey)}
+        </Button>
+      </form>
 
       {!data && !error && <Loading />}
       {data && data.recipes.length === 0 && (

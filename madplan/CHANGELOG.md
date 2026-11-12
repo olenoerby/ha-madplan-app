@@ -4,6 +4,9 @@
 
 - A search for recipes says why each page was refused, such as "may not be read by programs" or
   "did not say how many they serve", so a pattern can be seen and acted on.
+- "New recipes" has a search for the open tab, such as "Search for more drinks", with a field to
+  say what to look for, such as "alcohol-free" or "something with chicken". A search with a wish
+  does not wait for offers.
 
 ## 1.0.6
 

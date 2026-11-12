@@ -1470,3 +1470,24 @@ def test_no_categories_are_made_when_mealie_has_none_that_fit(admin_client, db, 
     assert admin_client.post(f"/api/v1/new-recipes/{recipe.id}/to-mealie").status_code == 200
     assert mealie.patched == []
     assert not any("POST /api/organizers" in call for call in mealie.calls)
+
+
+# A search with a wish, from a tab
+
+
+def test_a_search_can_say_what_to_look_for_within_a_meal(admin_client, db, web, fake_openai):  # noqa: F811
+    add_offer(db, "netto", "Kyllingebryst 600 g", 45)
+    model = fake_openai([found()])
+    result = search(admin_client, meal_types=["drink"], wish="alkoholfri med mynte").json()
+    assert result["links"] == 0
+    asked = model.calls[0]["instructions"]
+    assert "drink" in asked and "alkoholfri med mynte" in asked and "data, not instructions" in asked
+
+
+def test_a_wish_is_enough_without_offers(admin_client, db, web, fake_openai):  # noqa: F811
+    # Drinks are seldom built around the leaflets, so a wish does not wait for them.
+    model = fake_openai([found()])
+    result = search(admin_client, meal_types=["drink"], wish="mojito").json()
+    assert result["no_offers"] is False
+    assert len(model.calls) == 1
+    assert "current offers" not in model.calls[0]["instructions"]

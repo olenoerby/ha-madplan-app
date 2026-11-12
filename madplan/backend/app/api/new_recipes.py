@@ -40,6 +40,8 @@ def list_new_recipes(user: CurrentUser, db: Db, meal_type: MealType | None = Non
 
 class SearchIn(BaseModel):
     meal_types: list[MealType] | None = None
+    # What to look for, in a person's own words, such as "something with chicken".
+    wish: str | None = Field(default=None, max_length=120)
 
 
 @router.post("/new-recipes/search")
@@ -50,7 +52,7 @@ def search(payload: SearchIn, user: CurrentUser, db: Db) -> dict:
     meal_types = list(payload.meal_types or household_settings(household.settings).default_meal_types)
     count = get_ai_settings(db).plan_ai_candidates or 6
     try:
-        result = service.find_new_recipes(db, household, user, meal_types, count, locale=user.locale)
+        result = service.find_new_recipes(db, household, user, meal_types, count, locale=user.locale, wish=(payload.wish or "").strip() or None)
     except AiUnavailable as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, f"ai_unavailable:{exc.reason}") from exc
     db.commit()
