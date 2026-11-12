@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.7
+
+- A search for recipes says why each page was refused, such as "may not be read by programs" or
+  "did not say how many they serve", so a pattern can be seen and acted on.
+
 ## 1.0.6
 
 - A change of language in a person's own Home Assistant profile reaches MadPlan within a couple of

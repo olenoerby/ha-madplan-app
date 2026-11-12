@@ -99,7 +99,27 @@ function SearchOutcome({ result }: { result: RecipeSearchResult }) {
     <Notice kind={result.found > 0 ? "good" : undefined}>
       {t("recipes.result.found", { count: result.found })}
       {result.refused > 0 && ` ${t("recipes.result.refused", { count: result.refused })}`}
+      <RefusedWhy why={result.refused_why} />
     </Notice>
+  );
+}
+
+/** Why pages were refused, one line each, so a pattern can be seen. */
+function RefusedWhy({ why }: { why: Record<string, number> }) {
+  const { t } = useI18n();
+  const rows = Object.entries(why).sort(([, a], [, b]) => b - a);
+  if (rows.length === 0) return null;
+  return (
+    <span className="small" style={{ display: "block", marginTop: 6 }}>
+      {t("recipes.why.title")}{" "}
+      {rows
+        .map(([code, count]) => {
+          const key = `recipes.why.${code}` as TranslationKey;
+          return t(key, { count }) === key ? `${count} ${code}` : t(key, { count });
+        })
+        .join(", ")}
+      .
+    </span>
   );
 }
 
@@ -306,7 +326,10 @@ function FindDish() {
           </div>
           {onlineError && <Notice kind="critical">{onlineError}</Notice>}
           {online && online.recipes.length === 0 && (
-            <Notice kind={online.links === 0 ? "warning" : undefined}>{online.links === 0 ? t("recipes.result.noSearch") : t("pick.findOnlineNone")}</Notice>
+            <Notice kind={online.links === 0 ? "warning" : undefined}>
+              {online.links === 0 ? t("recipes.result.noSearch") : t("pick.findOnlineNone")}
+              <RefusedWhy why={online.refused_why} />
+            </Notice>
           )}
           {online && online.recipes.length > 0 && (
             <>
