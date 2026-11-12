@@ -11,7 +11,7 @@ from app.api.deps import CurrentUser, Db, household_of, require_feature
 from app.integrations.mealie import MealieError
 from app.models import Recipe, User
 from app.services import new_recipes as service
-from app.services.app_settings import get_ai_settings
+from app.services.app_settings import get_ai_settings, mealie_config
 from app.services.mealie_sync import ALLERGY as IMPORT_ALLERGY
 from app.services.mealie_sync import MealieOff, RecipeRefused
 from app.services.recipe_pages import PageRefused
@@ -54,7 +54,33 @@ def search(payload: SearchIn, user: CurrentUser, db: Db) -> dict:
     except AiUnavailable as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, f"ai_unavailable:{exc.reason}") from exc
     db.commit()
-    return {"found": len(result.saved), "refused": sum(result.refused.values()), "refused_why": dict(result.refused), "no_offers": result.no_offers}
+    return {"found": len(result.saved), "refused": sum(result.refused.values()), "refused_why": dict(result.refused), "no_offers": result.no_offers, "links": result.links}
+
+
+class DishIn(BaseModel):
+    dish: str = Field(min_length=2, max_length=80)
+
+
+@router.post("/new-recipes/dish")
+def search_dish(payload: DishIn, user: CurrentUser, db: Db) -> dict:
+    """A few real recipes for a dish someone named, such as "tomatsuppe", to choose between.
+
+    Each can be put on a day, or added to Mealie straight away.
+    """
+    require_feature(user, "new_recipes")
+    household = household_of(db, user)
+    try:
+        chosen, result = service.find_dish_online(db, household, user, payload.dish.strip(), locale=user.locale)
+    except AiUnavailable as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, f"ai_unavailable:{exc.reason}") from exc
+    db.commit()
+    return {
+        "recipes": service.cards_for(db, household, user, chosen),
+        "refused": sum(result.refused.values()),
+        "refused_why": dict(result.refused),
+        "links": result.links,
+        "mealie_connected": mealie_config(db, household.id) is not None,
+    }
 
 
 class LinkIn(BaseModel):

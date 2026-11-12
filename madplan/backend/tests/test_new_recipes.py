@@ -108,6 +108,10 @@ class FakeMealie:
         self.deleted: list[str] = []
         self.next_entry = 100
         self.fail_list = False
+        # Mealie's own categories and tags, as a household has named them.
+        self.categories: list[dict] = []
+        self.tags: list[dict] = []
+        self.patched: list[tuple[str, dict]] = []
 
     def handler(self, request: httpx.Request) -> httpx.Response:
         method, path = request.method, request.url.path
@@ -126,6 +130,15 @@ class FakeMealie:
             remote = self.imports[body["url"]]
             self.recipes[remote["slug"]] = remote
             return httpx.Response(201, json=remote["slug"])
+        if path == "/api/organizers/categories":
+            return httpx.Response(200, json={"items": self.categories})
+        if path == "/api/organizers/tags":
+            return httpx.Response(200, json={"items": self.tags})
+        if path.startswith("/api/recipes/") and method == "PATCH":
+            slug = path.rsplit("/", 1)[-1]
+            self.patched.append((slug, body))
+            self.recipes[slug] = {**self.recipes[slug], **body}
+            return httpx.Response(200, json=self.recipes[slug])
         if path.startswith("/api/recipes/"):
             slug = path.rsplit("/", 1)[-1]
             if method == "DELETE":
@@ -457,6 +470,14 @@ def test_no_offers_means_no_search_and_no_cost(admin_client, db, web, fake_opena
     model = fake_openai([found(URL)])
     assert search(admin_client).json()["no_offers"] is True
     assert model.calls == []
+
+
+def test_no_addresses_at_all_is_reported_so_web_search_can_be_switched_on(admin_client, db, web, fake_openai):  # noqa: F811
+    # An AI Task that may not search the web honestly finds nothing.
+    add_offer(db, "netto", "Kyllingebryst 600 g", 45)
+    fake_openai([found()])
+    result = search(admin_client).json()
+    assert (result["found"], result["refused"], result["links"]) == (0, 0, 0)
 
 
 def test_the_search_is_told_what_is_on_offer_and_what_must_not_be_in_it(admin_client, db, web, fake_openai):  # noqa: F811
@@ -1377,3 +1398,75 @@ def test_no_reminder_once_it_is_sent(admin_client, db, mealie):
     send(admin_client, plan["id"])
     run_worker(db)
     assert remind_unsent(db) == 0
+
+
+# A particular dish, found online
+
+
+SOUPS = [f"https://madsiden.dk/tomatsuppe-{n}" for n in range(1, 5)]
+
+
+def test_a_dish_can_be_found_online_in_three_versions(admin_client, db, web, fake_openai):  # noqa: F811
+    for n, url in enumerate(SOUPS[:3], start=1):
+        web.serve(url, page(name=f"Tomatsuppe nr. {n}", ingredients=("1 kg tomater", "1 løg", "1 l bouillon")))
+    web.serve(SOUPS[3], page(name="Linsesuppe", ingredients=("300 g røde linser", "1 løg")))
+    model = fake_openai([found(SOUPS[3], *SOUPS[:3])])
+    response = admin_client.post("/api/v1/new-recipes/dish", json={"dish": "tomatsuppe"})
+    assert response.status_code == 200, response.text
+    result = response.json()
+    assert [r["title"] for r in result["recipes"]] == ["Tomatsuppe nr. 1", "Tomatsuppe nr. 2", "Tomatsuppe nr. 3"]
+    # A lentil soup is not a tomato soup, whatever the model thought.
+    assert result["refused_why"] == {"not_the_dish": 1}
+    # The model was asked for that dish, as data, and for different versions.
+    assert "tomatsuppe" in model.calls[0]["instructions"] and "different version" in model.calls[0]["instructions"]
+    # Kept, so they can be planned or added to Mealie like any found recipe.
+    assert db.scalar(select(Recipe).where(Recipe.title == "Tomatsuppe nr. 2")).source == "web"
+
+
+def test_a_dish_found_before_is_offered_again(admin_client, db, web, fake_openai):  # noqa: F811
+    web_recipe(db, title="Tomatsuppe med basilikum", url=SOUPS[0])
+    db.commit()
+    fake_openai([found(SOUPS[0])])
+    result = admin_client.post("/api/v1/new-recipes/dish", json={"dish": "tomatsuppe"}).json()
+    assert [r["title"] for r in result["recipes"]] == ["Tomatsuppe med basilikum"]
+    assert len(db.scalars(select(Recipe).where(Recipe.source_url == SOUPS[0])).all()) == 1
+
+
+def test_every_found_recipe_can_be_seen_and_added_to_mealie(admin_client, db, mealie):
+    # Nothing in it is on offer this week, and it is still on the page, below those that are.
+    recipe = web_recipe(db, title="Tomatsuppe", url=URL)
+    db.commit()
+    page_data = admin_client.get("/api/v1/new-recipes").json()
+    assert [r["title"] for r in page_data["others"]] == ["Tomatsuppe"]
+    assert page_data["others"][0]["offers"] == []
+    mealie.imports[URL] = good_remote(title="Tomatsuppe")
+    response = admin_client.post(f"/api/v1/new-recipes/{recipe.id}/to-mealie")
+    assert response.status_code == 200, response.text
+    assert response.json()["link"]["kind"] == "mealie"
+
+
+# Mealie's categories and tags
+
+
+def test_an_imported_recipe_gets_mealies_categories_and_tags_for_its_meals(admin_client, db, mealie):
+    mealie.categories = [{"id": "c1", "name": "Aftensmad", "slug": "aftensmad"}, {"id": "c2", "name": "Morgenmad", "slug": "morgenmad"}]
+    mealie.tags = [{"id": "t1", "name": "Dinner", "slug": "dinner"}, {"id": "t2", "name": "Hurtig", "slug": "hurtig"}]
+    recipe = web_recipe(db, title="Kylling i karry", meal_types=("dinner",))
+    db.commit()
+    mealie.imports[URL] = good_remote()
+    assert admin_client.post(f"/api/v1/new-recipes/{recipe.id}/to-mealie").status_code == 200
+    slug, changes = mealie.patched[-1]
+    assert slug == "kylling-i-karry"
+    # Only those for its meal, and only ones Mealie already has.
+    assert [c["name"] for c in changes["recipeCategory"]] == ["Aftensmad"]
+    assert [t["name"] for t in changes["tags"]] == ["Dinner"]
+
+
+def test_no_categories_are_made_when_mealie_has_none_that_fit(admin_client, db, mealie):
+    mealie.categories = [{"id": "c9", "name": "Kager", "slug": "kager"}]
+    recipe = web_recipe(db, title="Kylling i karry", meal_types=("dinner",))
+    db.commit()
+    mealie.imports[URL] = good_remote()
+    assert admin_client.post(f"/api/v1/new-recipes/{recipe.id}/to-mealie").status_code == 200
+    assert mealie.patched == []
+    assert not any("POST /api/organizers" in call for call in mealie.calls)

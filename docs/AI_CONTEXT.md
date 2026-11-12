@@ -137,6 +137,8 @@ Things found this way, as a warning about what tests with invented data hide:
 | The language is the person's own in Home Assistant, read by the frontend from the Home Assistant page around it and sent as `X-MadPlan-Language` | The owner asked for Danish when Home Assistant is. Each person's profile language can differ from the system's, which the first version used, and only the browser knows it. The system language is the fallback for someone new |
 | A new plan leaves the meals Mealie already has a dish for to Mealie, and takes those dishes in | Mealie has the last word. Planning over them would suggest a second dinner |
 | A note in Mealie (no recipe) only becomes a meal where nothing is planned and the day is not skipped | A note may be "eating out" as well as a dish. People choose in the "New meal plan" dialog, and the pull respects it: `_note_gives_way` in `services/mealie_pull.py` |
+| A search for a named dish keeps only pages whose title has a word of what was asked | A lasagne search once gave a lentil soup. `_is_the_dish` in `services/new_recipes.py` |
+| Every found recipe is on the "New recipes" page, those on offer first | People asked to keep something interesting even when nothing in it is on offer |
 | Mealie's buttons and texts only show when its address and token are set | People without Mealie should not see what they cannot use |
 | The ingress port can also be given a host port, for API tokens only | A future integration can read MadPlan. Requests there are not from the Supervisor, so they cannot name a user |
 | minetilbud.dk is not a source, and stays on the block list | It does not allow crawling. The block list keeps it from coming back by mistake |

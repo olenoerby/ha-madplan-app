@@ -531,3 +531,34 @@ def test_a_real_page_goes_all_the_way(admin_client, db, configured, mealie):
 
 def test_seeding_again_changes_nothing(db):
     assert seed_builtin_recipes(db) == 0
+
+
+def test_a_recipe_gets_the_households_own_categories_and_tags_in_mealie(mealie, unique):
+    """The changes MadPlan sends are in the shape the real server takes."""
+    from app.services.mealie_sync import label_for_meals
+
+    name = f"Aftensmad {uuid.uuid4().hex[:6]}"
+    category = mealie._request("POST", "/api/organizers/categories", json={"name": name}).json()
+    tag = mealie._request("POST", "/api/organizers/tags", json={"name": "Dinner"}).json() if not any(t["name"] == "Dinner" for t in mealie.tags()) else next(t for t in mealie.tags() if t["name"] == "Dinner")
+    remote = write_recipe(mealie, unique, "", 4, [{"name": "laks", "quantity": 400, "unit": "g"}], ["Bag laksen."])
+    try:
+        # A category named like that is a household's own name for dinner only when it is exactly one.
+        import app.services.mealie_sync as sync
+
+        words = sync.meal_type_words
+        sync.meal_type_words = lambda meal: (*words(meal), name.lower())
+        try:
+            added = label_for_meals(mealie, remote, ["dinner"])
+        finally:
+            sync.meal_type_words = words
+        assert set(added) == {name, "Dinner"}
+        after = mealie.get_recipe(remote["slug"])
+        assert name in [c["name"] for c in after.get("recipeCategory") or []]
+        assert "Dinner" in [t["name"] for t in after.get("tags") or []]
+        # The recipe is otherwise as it was.
+        assert after["name"] == unique and [s["text"] for s in after["recipeInstructions"]] == ["Bag laksen."]
+    finally:
+        mealie.delete_recipe(remote["slug"])
+        mealie._request("DELETE", f"/api/organizers/categories/{category['id']}")
+        if tag.get("id"):
+            mealie._request("DELETE", f"/api/organizers/tags/{tag['id']}")

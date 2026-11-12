@@ -7,8 +7,8 @@ import { Button, Card, Empty, Icon, Loading, Notice, PageHead, Segmented } from 
 import { api } from "@/lib/api";
 import { kr } from "@/lib/format";
 import { useAction, useApi, useMe, useToast } from "@/lib/hooks";
-import { useI18n, type TranslationKey } from "@/lib/i18n";
-import type { MealType, NewRecipeCard, NewRecipes, Recipe, RecipeLink, RecipeSearchResult } from "@/lib/types";
+import { errorText, useI18n, type TranslationKey } from "@/lib/i18n";
+import type { DishSearchResult, MealType, NewRecipeCard, NewRecipes, Recipe, RecipeLink, RecipeSearchResult } from "@/lib/types";
 
 const MEALS: MealType[] = ["dinner", "lunch", "breakfast", "snack", "drink"];
 type Filter = MealType | "all";
@@ -72,7 +72,17 @@ export default function NewRecipesPage() {
           ))}
         </div>
       )}
-      {data && data.waiting_for_offers > 0 && <p className="small muted">{t("recipes.waiting", { count: data.waiting_for_offers })}</p>}
+      {data && (data.others?.length ?? 0) > 0 && (
+        <>
+          <h2 className="section-title">{t("recipes.others")}</h2>
+          <p className="small muted">{t("recipes.othersHint")}</p>
+          <div className="recipe-grid">
+            {data.others?.map((recipe) => (
+              <RecipeCard key={recipe.id} recipe={recipe} canAdd={data.mealie_connected && data.mealie_sync_enabled} />
+            ))}
+          </div>
+        </>
+      )}
 
       <AddLink onAdded={reload} />
     </>
@@ -82,6 +92,9 @@ export default function NewRecipesPage() {
 function SearchOutcome({ result }: { result: RecipeSearchResult }) {
   const { t } = useI18n();
   if (result.no_offers) return <Notice>{t("recipes.result.noOffers")}</Notice>;
+  // No address at all, or only addresses that led nowhere: the agent did not search the web.
+  const guessed = result.found === 0 && result.refused > 0 && Object.keys(result.refused_why).every((why) => why === "unreachable" || why === "no_recipe");
+  if (result.links === 0 || guessed) return <Notice kind="warning">{t("recipes.result.noSearch")}</Notice>;
   return (
     <Notice kind={result.found > 0 ? "good" : undefined}>
       {t("recipes.result.found", { count: result.found })}
@@ -144,7 +157,16 @@ function RecipeCard({ recipe, canAdd }: { recipe: NewRecipeCard; canAdd: boolean
       <p className="small muted">{t("recipes.cost", { cost: kr(recipe.cost, locale), people: recipe.people })}</p>
       {recipe.disliked.length > 0 && <p className="small muted">{t("recipes.disliked", { items: recipe.disliked.join(", ") })}</p>}
       <div className="row recipe-actions">
-        {added ? (
+        {recipe.in_mealie && !added ? (
+          <>
+            <span className="badge good">
+              <Icon name="check" size={13} />
+              {t("recipes.inMealie")}
+            </span>
+            <RecipeLinkButton link={recipe.link} />
+            <PlanDishButton recipeId={recipe.id} title={recipe.title} mealTypes={recipe.meal_types} variant="primary" />
+          </>
+        ) : added ? (
           <>
             <span className="badge good">
               <Icon name="check" size={13} />
@@ -223,16 +245,32 @@ function AddLink({ onAdded }: { onAdded: () => Promise<void> }) {
   );
 }
 
-/** Any of the household's dishes, from Mealie or found before, to put on a day. */
+/** Any of the household's dishes, from Mealie or found before, to put on a day, or versions of it found online. */
 function FindDish() {
   const { t, locale } = useI18n();
+  const me = useMe();
   const [draft, setDraft] = useState("");
   const [query, setQuery] = useState("");
+  const [online, setOnline] = useState<DishSearchResult | null>(null);
+  const [onlineError, setOnlineError] = useState<string | null>(null);
+  const { busy: searching, run } = useAction();
+  const searchOnline = () =>
+    void run(async () => {
+      setOnline(null);
+      setOnlineError(null);
+      try {
+        setOnline(await api<DishSearchResult>("/new-recipes/dish", { body: { dish: query } }));
+      } catch (caught) {
+        setOnlineError(errorText(t, caught));
+      }
+    });
   const { data: found, loading } = useApi<Recipe[]>(query ? `/recipes?q=${encodeURIComponent(query)}` : null);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
     setQuery(draft.trim());
+    setOnline(null);
+    setOnlineError(null);
   };
 
   return (
@@ -258,6 +296,30 @@ function FindDish() {
             )}
           </div>
         ))}
+      {query && me.setup.ai && (
+        <div className="stack-sm" style={{ marginTop: 8 }}>
+          <div className="row">
+            <Button working={searching} workingTexts={[t("working.recipes1"), t("working.reading"), t("working.minute")]} onClick={searchOnline}>
+              <Icon name="sparkle" />
+              {t("pick.findOnline", { dish: query })}
+            </Button>
+          </div>
+          {onlineError && <Notice kind="critical">{onlineError}</Notice>}
+          {online && online.recipes.length === 0 && (
+            <Notice kind={online.links === 0 ? "warning" : undefined}>{online.links === 0 ? t("recipes.result.noSearch") : t("pick.findOnlineNone")}</Notice>
+          )}
+          {online && online.recipes.length > 0 && (
+            <>
+              <p className="small muted">{t("pick.findOnlineHint")}</p>
+              <div className="recipe-grid">
+                {online.recipes.map((recipe) => (
+                  <RecipeCard key={recipe.id} recipe={recipe} canAdd={online.mealie_connected} />
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </Card>
   );
 }

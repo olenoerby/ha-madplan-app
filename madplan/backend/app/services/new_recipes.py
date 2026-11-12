@@ -37,6 +37,7 @@ from app.services.recipes import (
     same_dish,
     visible_recipes,
 )
+from app.services.text import normalize
 
 log = logging.getLogger(__name__)
 
@@ -56,6 +57,8 @@ class SearchResult:
     saved: list[Recipe] = field(default_factory=list)
     refused: Counter = field(default_factory=Counter)
     no_offers: bool = False
+    # How many addresses the AI agent gave. None at all usually means it could not search the web.
+    links: int = 0
 
 
 def _same_address(url: str | None) -> str:
@@ -132,7 +135,7 @@ def find_new_recipes(
     # A few more than wanted, as many pages turn out not to hold a whole recipe.
     found = search_recipe_pages(household, user, meal_types, count * 2, lines, ctx.profile, titles, locale)
 
-    result = SearchResult()
+    result = SearchResult(links=len(found))
     addresses = {_same_address(r.source_url) for r in known if r.source_url}
     deadline = time.monotonic() + _READING_SECONDS
     with _reader() as reader:
@@ -155,8 +158,91 @@ def find_new_recipes(
                 known.append(saved)
             except PageRefused as exc:
                 result.refused[exc.reason] += 1
-    log.info("recipe search for household %d kept %d, refused %s", household.id, len(result.saved), dict(result.refused))
+    log.info(
+        "recipe search for household %d: the AI agent gave %d addresses, kept %d, refused %s",
+        household.id,
+        len(found),
+        len(result.saved),
+        dict(result.refused),
+    )
+    if not found:
+        log.warning("the AI agent gave no addresses: it is probably not allowed to search the web")
     return result
+
+
+# Versions of one dish that a search for it offers to choose between.
+DISH_CHOICES = 3
+_ANY_MEAL = ["dinner", "lunch", "breakfast", "snack", "drink"]
+NOT_THE_DISH = "not_the_dish"
+
+
+def _is_the_dish(asked: str, title: str) -> bool:
+    """Whether a page's title is the dish that was asked for. A lasagne search once gave a lentil
+    soup, so a word of what was asked must be in the title: "suppe" is in "Tomatsuppe"."""
+    words = [w for w in normalize(asked).split() if len(w) >= 4] or normalize(asked).split()
+    name = normalize(title)
+    return any(word in name for word in words)
+
+
+def find_dish_online(
+    db: Session,
+    household: Household,
+    user: User | None,
+    dish: str,
+    count: int = DISH_CHOICES,
+    locale: str = "da",
+) -> tuple[list[Recipe], SearchResult]:
+    """A few real recipes for a dish someone named, to choose between.
+
+    Each page is read and checked as any other found page, and kept, so it can be put on a day
+    or added to Mealie. A page found before is offered again rather than refused. Raises
+    AiUnavailable when no search can be made.
+    """
+    ctx = build_context(db, household, local_today(), user)
+    known = list(db.scalars(select(Recipe).where(Recipe.household_id == household.id)))
+    by_address = {_same_address(r.source_url): r for r in known if r.source_url}
+    found = search_recipe_pages(household, user, _ANY_MEAL, count * 2, [], ctx.profile, [], locale, dish=dish)
+
+    result = SearchResult(links=len(found))
+    chosen: list[Recipe] = []
+    seen: set[str] = set()
+    deadline = time.monotonic() + _READING_SECONDS
+    with _reader() as reader:
+        for link in found:
+            if len(chosen) >= count or time.monotonic() > deadline:
+                break
+            address = _same_address(link.url)
+            if address in seen:
+                continue
+            seen.add(address)
+            if address in by_address:
+                # Found before: still one of the choices, unless someone said no thanks to it.
+                again = by_address[address]
+                if again.dismissed_at is None and _is_the_dish(dish, again.title):
+                    chosen.append(again)
+                continue
+            fallback = link.meal_type if link.meal_type in _ANY_MEAL else "dinner"
+            try:
+                page = reader.read(link.url, fallback)
+                if not _is_the_dish(dish, page.title):
+                    raise PageRefused(NOT_THE_DISH, page.url)
+                if _same_address(page.url) in by_address:
+                    chosen.append(by_address[_same_address(page.url)])
+                    continue
+                saved = save_page(db, household, page)
+                by_address[_same_address(saved.source_url)] = saved
+                chosen.append(saved)
+                result.saved.append(saved)
+            except PageRefused as exc:
+                result.refused[exc.reason] += 1
+    log.info(
+        "dish search for household %d: the AI agent gave %d addresses, offered %d, refused %s",
+        household.id,
+        len(found),
+        len(chosen),
+        dict(result.refused),
+    )
+    return chosen, result
 
 
 def add_from_link(db: Session, household: Household, url: str, meal_type: str = "dinner") -> Recipe:
@@ -217,6 +303,37 @@ def household_links(db: Session, household_id: int) -> tuple[str | None, str | N
     return mealie_public_base(db, household_id), get_integrations(db, household_id).mealie_group_slug
 
 
+def recipe_card(recipe: Recipe, ctx: PlanContext, people: float, base: str | None, group: str | None, today: date) -> dict:
+    """A found recipe as the pages show it: what it costs, and what in it is on offer."""
+    offers = _offers_in(recipe, ctx)
+    scored = score_recipe(recipe, people, today, ctx, Counter(), frozenset())
+    return {
+        "id": recipe.id,
+        "title": recipe.title,
+        "description": recipe.description,
+        "image_url": recipe.image_url,
+        "meal_types": recipe.meal_types,
+        "servings": recipe.servings,
+        "link": recipe_link(recipe, base, group),
+        "in_mealie": bool(recipe.mealie_slug),
+        "cost": scored.cost,
+        "people": people,
+        "offers": offers[:_MAX_ON_CARD],
+        "more_offers": max(0, len(offers) - _MAX_ON_CARD),
+        "disliked": [r["term"] for r in scored.reasons if r["code"] == "disliked"],
+        "score": scored.score,
+    }
+
+
+def cards_for(db: Session, household: Household, user: User, recipes: list[Recipe]) -> list[dict]:
+    """Cards for these recipes, in the order given."""
+    today = local_today()
+    ctx = build_context(db, household, today, user)
+    people = portions(ctx.settings.default_adults, ctx.settings.default_children, ctx.settings.child_portion)
+    base, group = household_links(db, household.id)
+    return [recipe_card(r, ctx, people, base, group, today) for r in recipes]
+
+
 def new_recipes(db: Session, household: Household, user: User, meal_type: str | None = None) -> dict:
     """Found recipes that are not in Mealie yet and use something on offer now, best first."""
     today = local_today()
@@ -229,33 +346,15 @@ def new_recipes(db: Session, household: Household, user: User, meal_type: str | 
     base, group = household_links(db, household.id)
 
     cards = []
-    waiting = 0
+    others = []
     for recipe in allowed.values():
         if meal_type and meal_type not in (recipe.meal_types or []):
             continue
-        offers = _offers_in(recipe, ctx)
-        if not offers:
-            waiting += 1
-            continue
-        scored = score_recipe(recipe, people, today, ctx, Counter(), frozenset())
-        cards.append(
-            {
-                "id": recipe.id,
-                "title": recipe.title,
-                "description": recipe.description,
-                "image_url": recipe.image_url,
-                "meal_types": recipe.meal_types,
-                "servings": recipe.servings,
-                "link": recipe_link(recipe, base, group),
-                "cost": scored.cost,
-                "people": people,
-                "offers": offers[:_MAX_ON_CARD],
-                "more_offers": max(0, len(offers) - _MAX_ON_CARD),
-                "disliked": [r["term"] for r in scored.reasons if r["code"] == "disliked"],
-                "score": scored.score,
-            }
-        )
+        card = recipe_card(recipe, ctx, people, base, group, today)
+        # Something found may be worth keeping even when nothing in it is on offer this week.
+        (cards if card["offers"] else others).append(card)
     cards.sort(key=lambda card: -card["score"])
+    others.sort(key=lambda card: -card["score"])
 
     config = mealie_config(db, household.id)
     search_blocked = None
@@ -265,7 +364,9 @@ def new_recipes(db: Session, household: Household, user: User, meal_type: str | 
         search_blocked = exc.reason
     return {
         "recipes": cards,
-        "waiting_for_offers": waiting,
+        # Found recipes with nothing on offer now. They can still be planned, or added to Mealie.
+        "others": others,
+        "waiting_for_offers": len(others),
         "offers_known": bool(ctx.book.offers),
         "search_blocked": search_blocked,
         "mealie_connected": config is not None,

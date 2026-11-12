@@ -1,9 +1,9 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { ApiError, api } from "./api";
+import { ApiError, api, homeAssistantLanguage } from "./api";
 import { clearOfflineData } from "./offline";
-import { errorText, useI18n } from "./i18n";
+import { errorText, useI18n, type Locale } from "./i18n";
 import type { Me } from "./types";
 
 /** Fetches a path. A reload keeps the previous data on screen, so the page never flashes. */
@@ -107,6 +107,15 @@ interface Session {
 
 const SessionContext = createContext<Session | null>(null);
 
+/** The person's own language in Home Assistant, as MadPlan's: Danish for Danish, English otherwise. */
+function languageInHomeAssistant(): Locale | null {
+  const language = homeAssistantLanguage();
+  return language ? (language.toLowerCase().startsWith("da") ? "da" : "en") : null;
+}
+
+// How often to look for a change of language in Home Assistant. It is only a local read.
+const LANGUAGE_CHECK_MS = 2000;
+
 export function SessionProvider({ children }: { children: ReactNode }) {
   const { setLocale } = useI18n();
   const [me, setMe] = useState<Me | null>(null);
@@ -135,6 +144,23 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  // Follows the person's language in Home Assistant at once, also when they change it while
+  // MadPlan is open, and tells the server, so messages come in the same language.
+  const seenLanguage = useRef<Locale | null>(null);
+  useEffect(() => {
+    const check = () => {
+      const language = languageInHomeAssistant();
+      if (!language || language === seenLanguage.current) return;
+      const first = seenLanguage.current === null;
+      seenLanguage.current = language;
+      setLocale(language);
+      if (!first) void refresh();
+    };
+    check();
+    const timer = window.setInterval(check, LANGUAGE_CHECK_MS);
+    return () => window.clearInterval(timer);
+  }, [refresh, setLocale]);
 
   return <SessionContext.Provider value={{ me, loading, outside, refresh, logout }}>{children}</SessionContext.Provider>;
 }

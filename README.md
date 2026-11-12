@@ -57,7 +57,11 @@ All AI goes through an [AI Task](https://www.home-assistant.io/integrations/ai_t
 Home Assistant, such as one from the OpenAI, Google Gemini or Anthropic integrations. Choose its
 model and limits there, and make one just for MadPlan if you want to keep its use apart. MadPlan
 asks for answers as JSON and checks them, so a model that cannot keep to that will count as a
-failed call. Finding new recipes and the price hunt need an agent that can search the web.
+failed call. Finding new recipes and the price hunt need an agent that can search the web: switch
+web search on in the AI Task's settings in its integration, which is off by default.
+
+> **Check that the model supports web search.** Home Assistant only offers the choice for models
+> that do, and without it the recipe search finds nothing. gpt-4o-mini works well, for example.
 
 App configuration cannot offer a dropdown of entities, so the entity id is typed in. The admin page
 in the app lists the AI Task entities Home Assistant has.
@@ -102,7 +106,7 @@ Nothing has yet been tried on a real Home Assistant installation.
 | People are Home Assistant's users, and only the Supervisor may say who someone is | Works | Test, and a direct request is refused in the browser run |
 | Home Assistant's administrators are MadPlan's, and the role follows changes there | Works | Test and browser |
 | Household manager and guest roles, set in the app | Works | Test |
-| Each person's own Home Assistant language: Danish when it is Danish, English otherwise | Works | Test. The system language also in the browser run. The profile language reported wrong on a real installation in 1.0.0 and fixed in 1.0.1, not yet confirmed there |
+| Each person's own Home Assistant language: Danish when it is Danish, English otherwise. A change in the profile is followed while MadPlan is open | Works | Test, and browser with a stand-in Home Assistant page around the app. The profile language reported wrong on a real installation in 1.0.0, fixed in 1.0.1, not yet confirmed there |
 | Configuration on the app's tab in Home Assistant, shown and checked on the admin page | Works | Test and browser. Home Assistant's own form not seen yet |
 | AI through a chosen AI Task entity | Works | Test and browser, with a stand-in answer. Not with a real entity yet |
 | Photos (receipts, the cupboard) to the AI agent | Built | Test. Not with a real entity yet |
@@ -147,7 +151,9 @@ Nothing has yet been tried on a real Home Assistant installation.
 | "Save and send to Mealie" sends recipe, calendar entry and shopping list, and nothing goes before | Works | Earlier, real. Test |
 | A recipe missing in Mealie is imported from its page, and checked | Works | Earlier, real |
 | What MadPlan puts in Mealie is marked "Fra MadPlan" | Works | Test |
+| A recipe added to Mealie gets Mealie's own categories and tags for its meals ("Aftensmad", "Dinner", "Morgenmad", "Drinks" and so on), when they exist. None are made | Works | Test, and against a real Mealie in CI |
 | What Mealie already has planned is shown on the plan | Works | Earlier, real |
+| The calendar links to Mealie's meal planner, and Mealie's dishes to their recipes | Works | Test. Mealie's planner address is the one in Mealie 2 and 3 |
 
 ### The household
 
@@ -157,6 +163,7 @@ Nothing has yet been tried on a real Home Assistant installation.
 | "Buy more toilet paper?", food waste, budget, "less than last year" | Works | Test |
 | Assistant, with a simple answer without AI. It can offer to do things, and nothing happens until someone presses | Works | Test, and browser with a stand-in answer |
 | New recipes page, and a weekly search for recipes that use what is on offer | Works, the search with an AI agent | Test |
+| Search online for a particular dish, and choose between 3 real recipes for it. Any found recipe can be added to Mealie, also without planning it | Works, with an AI agent that can search | Test, and browser for the page (the search itself against a stand-in) |
 | Download your data, and delete your user | Works | Test |
 
 ## Documentation

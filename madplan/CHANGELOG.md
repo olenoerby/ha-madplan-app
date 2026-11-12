@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.0.6
+
+- A change of language in a person's own Home Assistant profile reaches MadPlan within a couple of
+  seconds, also while it is open, and MadPlan starts in that language without a Danish flash.
+- When the AI agent comes back with no recipe pages, or only ones that do not exist, the "New
+  recipes" page says that it must be allowed to search the web, and where to switch that on in
+  Home Assistant. The log says how many addresses it gave.
+- A warning on the admin page, and in the documentation, to check that the AI agent's model supports
+  web search, such as gpt-4o-mini.
+- "Plan a particular dish" can search online: type a dish, such as "tomatsuppe", and choose between
+  3 real recipes for it from different sites. Each can be put on a day, or added to Mealie at once.
+  Pages that are another dish are left out.
+- "New recipes" shows every found recipe, also those with nothing on offer this week, so any of
+  them can be planned or added to Mealie. Recipes already in Mealie say so.
+- A recipe MadPlan adds to Mealie is put in Mealie's categories and tags for its meals, such as
+  "Aftensmad", "Dinner", "Morgenmad" or "Drinks", when Mealie has them. None are made.
+- The calendar has a button to Mealie's own meal planner, and dishes from Mealie link to their
+  recipe there. Only with Mealie connected.
+
 ## 1.0.5
 
 - Mealie's recipes are read when the first plan is made, and when the connection is tested on the

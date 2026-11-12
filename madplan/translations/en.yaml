@@ -16,7 +16,7 @@ configuration:
     description: Mealie has the last word. Changes to its meal planner and shopping list are taken this often.
   ai_task_entity:
     name: AI Task entity
-    description: Such as ai_task.openai_ai_task. All AI goes through it, and its model, tokens and limits are set in that integration. The app's admin page lists the ones you have. Leave empty to use MadPlan without AI.
+    description: Such as ai_task.openai_ai_task. All AI goes through it, and its model, tokens and limits are set in that integration. The app's admin page lists the ones you have. Leave empty to use MadPlan without AI. Finding recipes needs web search switched on for it, and a model that supports it, such as gpt-4o-mini.
   notify_service:
     name: Default notify service
     description: Such as notify.mobile_app_my_phone. Used for people who have not chosen their own phone in MadPlan's settings. Leave empty for none.

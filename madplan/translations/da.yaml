@@ -16,7 +16,7 @@ configuration:
     description: Mealie har det sidste ord. Ændringer i dens madplan og indkøbsliste hentes så ofte.
   ai_task_entity:
     name: AI Task-entitet
-    description: Fx ai_task.openai_ai_task. Al AI går gennem den, og model, tokens og grænser sættes i den integration. Appens admin-side viser dem, du har. Lad den være tom for at bruge MadPlan uden AI.
+    description: Fx ai_task.openai_ai_task. Al AI går gennem den, og model, tokens og grænser sættes i den integration. Appens admin-side viser dem, du har. Lad den være tom for at bruge MadPlan uden AI. Opskriftssøgning kræver, at websøgning er slået til for den, og en model, der understøtter det, fx gpt-4o-mini.
   notify_service:
     name: Standard notify-tjeneste
     description: Fx notify.mobile_app_min_telefon. Bruges til dem, der ikke har valgt deres egen telefon i MadPlans indstillinger. Tom for ingen.

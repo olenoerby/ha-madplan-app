@@ -161,3 +161,17 @@ def test_the_crawl_runs_apart_from_the_other_jobs(monkeypatch):
     calls.clear()
     assert worker.run_due_jobs(only=lambda job: job == "crawl") == ["crawl"]
     assert calls == ["crawl"]
+
+
+# The calendar
+
+
+def test_the_calendar_links_to_mealies_planner_only_with_mealie(admin_client, mealie):
+    from .conftest import set_options
+
+    assert admin_client.get("/api/v1/calendar").json()["mealie_planner_url"] == "http://mealie:9000/household/mealplan/planner/view"
+    # The address people open Mealie on, when it differs.
+    set_options(mealie_url="http://mealie:9000", mealie_token="t", mealie_public_url="https://mad.example.dk/")
+    assert admin_client.get("/api/v1/calendar").json()["mealie_planner_url"] == "https://mad.example.dk/household/mealplan/planner/view"
+    set_options(mealie_url=None, mealie_token=None, mealie_public_url=None)
+    assert admin_client.get("/api/v1/calendar").json()["mealie_planner_url"] is None
