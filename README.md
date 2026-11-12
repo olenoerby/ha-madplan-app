@@ -148,6 +148,7 @@ Nothing has yet been tried on a real Home Assistant installation.
 | A recipe missing in Mealie is imported from its page, and checked | Works | Earlier, real |
 | What MadPlan puts in Mealie is marked "Fra MadPlan" | Works | Test |
 | What Mealie already has planned is shown on the plan | Works | Earlier, real |
+| The calendar links to Mealie's meal planner, and Mealie's dishes to their recipes | Works | Test. Mealie's planner address is the one in Mealie 2 and 3 |
 
 ### The household
 

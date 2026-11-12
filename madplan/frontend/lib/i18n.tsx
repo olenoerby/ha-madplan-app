@@ -619,6 +619,7 @@ const da = {
   "budget.note.estimate": "Anslået",
 
   "calendar.title": "Kalender",
+  "calendar.openMealie": "Åbn Mealies madplan",
   "calendar.subtitle": "Madplanen sammen med det, der står i Mealies kalender.",
   "calendar.subtitleNoMealie": "Madplanen, dag for dag.",
   "calendar.empty": "Intet planlagt i de næste to uger.",
@@ -1540,6 +1541,7 @@ const en: Record<TranslationKey, string> = {
   "budget.note.estimate": "Estimated",
 
   "calendar.title": "Calendar",
+  "calendar.openMealie": "Open Mealie's meal planner",
   "calendar.subtitle": "The meal plan together with what is in Mealie's calendar.",
   "calendar.subtitleNoMealie": "The meal plan, day by day.",
   "calendar.empty": "Nothing planned in the next two weeks.",

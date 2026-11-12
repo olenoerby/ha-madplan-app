@@ -7,6 +7,8 @@
 - When the AI agent comes back with no recipe pages, or only ones that do not exist, the "New
   recipes" page says that it must be allowed to search the web, and where to switch that on in
   Home Assistant. The log says how many addresses it gave.
+- The calendar has a button to Mealie's own meal planner, and dishes from Mealie link to their
+  recipe there. Only with Mealie connected.
 
 ## 1.0.5
 

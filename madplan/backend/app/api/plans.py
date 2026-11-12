@@ -27,7 +27,7 @@ from app.models import (
     ShoppingList,
     User,
 )
-from app.services.app_settings import mealie_client
+from app.services.app_settings import mealie_client, mealie_public_base
 from app.services.catalog import section_of
 from app.services.leftovers import FollowsAnotherMeal, leftovers_of
 from app.services.manual_meals import (
@@ -42,7 +42,7 @@ from app.services.manual_meals import (
     set_bought,
     stop_leftovers,
 )
-from app.services.mealie_sync import MealieOff, calendar_entries, plan_state, send_plan
+from app.services.mealie_sync import MealieOff, calendar_entries, mealie_planner_url, plan_state, send_plan
 from app.services.new_recipes import find_new_recipes, household_links, recipe_link
 from app.services.pantry import set_cooked
 from app.services.planner import (
@@ -938,6 +938,8 @@ def calendar(user: CurrentUser, db: Db, start: date | None = None, end: date | N
         "end": last,
         "meals": sorted(meals, key=lambda m: m["date"]),
         "mealie": calendar_entries(db, plans, user.household_id, first, last),
+        # None without Mealie, and then nothing about it is shown.
+        "mealie_planner_url": mealie_planner_url(mealie_public_base(db, user.household_id)),
     }
 
 

@@ -620,6 +620,11 @@ def calendar_entries(db: Session, plans: list[MealPlan], household_id: int, star
     return results
 
 
+def mealie_planner_url(base: str | None) -> str | None:
+    """Mealie's own meal planner, as people open it."""
+    return f"{base}/household/mealplan/planner/view" if base else None
+
+
 def mealie_recipe_url(base: str | None, group: str | None, slug: str | None) -> str | None:
     """With the group, as that address sends someone not logged in through the login and back."""
     if not base or not slug:
