@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.6
+
+- A change of language in a person's own Home Assistant profile reaches MadPlan within a couple of
+  seconds, also while it is open, and MadPlan starts in that language without a Danish flash.
+
 ## 1.0.5
 
 - Mealie's recipes are read when the first plan is made, and when the connection is tested on the
