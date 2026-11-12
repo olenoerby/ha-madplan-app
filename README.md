@@ -57,7 +57,11 @@ All AI goes through an [AI Task](https://www.home-assistant.io/integrations/ai_t
 Home Assistant, such as one from the OpenAI, Google Gemini or Anthropic integrations. Choose its
 model and limits there, and make one just for MadPlan if you want to keep its use apart. MadPlan
 asks for answers as JSON and checks them, so a model that cannot keep to that will count as a
-failed call. Finding new recipes and the price hunt need an agent that can search the web.
+failed call. Finding new recipes and the price hunt need an agent that can search the web: switch
+web search on in the AI Task's settings in its integration, which is off by default.
+
+> **Check that the model supports web search.** Home Assistant only offers the choice for models
+> that do, and without it the recipe search finds nothing. gpt-4o-mini works well, for example.
 
 App configuration cannot offer a dropdown of entities, so the entity id is typed in. The admin page
 in the app lists the AI Task entities Home Assistant has.

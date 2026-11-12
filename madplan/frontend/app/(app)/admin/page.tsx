@@ -107,6 +107,7 @@ function SetupTab() {
         <SetupRow label={t("admin.setup.aiEntity")} value={setup.ai.entity ?? off} ok={setup.ai.entity ? setup.ai.found : null} />
         {setup.ai.entity && setup.ai.found === false && <Notice kind="warning">{t("admin.setup.aiMissing")}</Notice>}
         <p className="small muted">{t("admin.setup.aiHint")}</p>
+        {setup.ai.entity && <Notice kind="warning">{t("admin.setup.aiModelWarning")}</Notice>}
         {setup.ai.available.length === 0 ? (
           <p className="small muted">{t("admin.setup.aiNone")}</p>
         ) : (

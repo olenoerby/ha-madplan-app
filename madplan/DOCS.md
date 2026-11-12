@@ -30,7 +30,11 @@ in **Mealie address for links**.
 Set **AI Task entity** to one of Home Assistant's AI Task entities, such as
 `ai_task.openai_ai_task`. The admin page in MadPlan lists the ones you have. Set up the model and its
 limits in that integration. For finding new recipes and hunting prices, it must be able to search
-the web.
+the web: switch on web search in the AI Task's settings in that integration, which is off by
+default.
+
+Check that the model supports web search. Home Assistant only offers the choice for models that do,
+so if it is missing, choose another model. gpt-4o-mini works well, for example.
 
 With **The assistant may read entity states** on, the assistant can answer from your sensors. Their
 names and values are then sent to the AI agent.
