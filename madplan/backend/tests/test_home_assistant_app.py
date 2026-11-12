@@ -153,6 +153,27 @@ def test_messages_go_to_the_chosen_notify_service(admin_client, db, home_assista
     assert home_assistant.calls[-1][1]["title"] == "Madplanen er klar"
 
 
+def test_each_person_can_send_their_messages_to_their_own_phone(admin_client, db, home_assistant):
+    from app.services.notifications import notify
+
+    set_options(notify_service="notify.mobile_app_telefon")
+    make_user(db, "mor")
+    mor = login_as("mor")
+    services = mor.get("/api/v1/me/notify-services").json()
+    # Only places to send to, and what is used when nothing is chosen.
+    assert [s["service"] for s in services["available"]] == ["notify.mobile_app_mor", "notify.mobile_app_telefon"]
+    assert services["default"] == "notify.mobile_app_telefon"
+    settings = mor.get("/api/v1/me/settings").json()
+    assert mor.put("/api/v1/me/settings", json={**settings, "notify_service": "notify.mobile_app_mor"}).status_code == 200
+    # Not a service name: refused.
+    assert mor.put("/api/v1/me/settings", json={**settings, "notify_service": "light.turn_on; x"}).status_code == 422
+
+    notify(db, db.scalar(select(User).where(User.username == "mor")), "plan_ready", {"start": "2026-11-16", "end": "2026-11-22"})
+    notify(db, db.scalar(select(User).where(User.username == "admin")), "plan_ready", {"start": "2026-11-16", "end": "2026-11-22"})
+    db.commit()
+    assert [call[0] for call in home_assistant.calls[-2:]] == ["mobile_app_mor", "mobile_app_telefon"]
+
+
 # The pages
 
 

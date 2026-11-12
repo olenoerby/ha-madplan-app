@@ -30,6 +30,7 @@ export interface UserSettings {
   max_price_per_meal: number | null;
   use_phone_location: boolean;
   pantry_photo_auto_apply: boolean;
+  notify_service: string | null;
   features: FeatureToggles;
 }
 

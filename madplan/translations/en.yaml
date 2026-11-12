@@ -18,8 +18,8 @@ configuration:
     name: AI Task entity
     description: Such as ai_task.openai_ai_task. All AI goes through it, and its model, tokens and limits are set in that integration. The app's admin page lists the ones you have. Leave empty to use MadPlan without AI.
   notify_service:
-    name: Notify service
-    description: Such as notify.mobile_app_my_phone, for MadPlan's messages. Leave empty for none.
+    name: Default notify service
+    description: Such as notify.mobile_app_my_phone. Used for people who have not chosen their own phone in MadPlan's settings. Leave empty for none.
   assistant_reads_states:
     name: The assistant may read entity states
     description: Lets the assistant answer things like "are we out of toilet paper?". Sensor names and values are then sent to the AI agent.

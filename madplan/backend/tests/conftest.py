@@ -42,6 +42,7 @@ class FakeHomeAssistant:
         self.users: list[dict] = [{"id": "ha-admin", "is_owner": True, "group_ids": ["system-admin"]}]
         self.states: list[dict] = []
         self.calls: list[tuple[str, dict]] = []
+        self.notify_services: list[str] = ["mobile_app_mor", "mobile_app_telefon"]
         # What ai_task.generate_data answers, in order. A dict is sent as structured data.
         self.ai_answers: list = []
 
@@ -61,6 +62,9 @@ class FakeHomeAssistant:
                 return httpx.Response(500, text=str(answer))
             data = answer if isinstance(answer, str) else json.dumps(answer)
             return httpx.Response(200, json={"changed_states": [], "service_response": {"conversation_id": "c", "data": data}})
+        if path.endswith("/api/services") and request.method == "GET":
+            notify = {name: {"name": name.replace("_", " ")} for name in self.notify_services}
+            return httpx.Response(200, json=[{"domain": "notify", "services": {**notify, "send_message": {}}}, {"domain": "light", "services": {"turn_on": {}}}])
         if "/api/services/notify/" in path:
             self.calls.append((path.rsplit("/", 1)[-1], body))
             return httpx.Response(200, json=[])

@@ -222,6 +222,23 @@ def generate_data(entity_id: str, task_name: str, instructions: str, attachments
     return data if isinstance(data, str) else json.dumps(data, ensure_ascii=False)
 
 
+# Services in the notify domain that are not a place to send to.
+_NOT_A_TARGET = {"send_message", "persistent_notification"}
+
+
+def notify_services() -> list[dict]:
+    """Home Assistant's notify services, such as each phone's, for people to choose their own."""
+    try:
+        domains = core_request("GET", "/api/services") or []
+    except HomeAssistantUnavailable:
+        return []
+    for domain in domains:
+        if domain.get("domain") == "notify":
+            names = sorted(n for n in (domain.get("services") or {}) if n not in _NOT_A_TARGET)
+            return [{"service": f"notify.{n}", "name": (domain["services"][n] or {}).get("name") or n} for n in names]
+    return []
+
+
 def notify(service: str, title: str, message: str) -> None:
     name = service.removeprefix("notify.")
     core_request("POST", f"/api/services/notify/{name}", json={"title": title, "message": message})

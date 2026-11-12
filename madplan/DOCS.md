@@ -37,8 +37,14 @@ names and values are then sent to the AI agent.
 
 ### Messages
 
-Set **Notify service**, such as `notify.mobile_app_my_phone`, to get MadPlan's messages there as
-well as in the app.
+Each person chooses where their own messages go, such as their phone with the Home Assistant app,
+in MadPlan under Settings, Features. The list there holds Home Assistant's notify services.
+
+**Default notify service**, such as `notify.mobile_app_my_phone`, is used for people who have not
+chosen. Leave it empty to send nothing to those.
+
+Optional options left empty are hidden on the Configuration tab. Turn on **Show unused optional
+configuration options** at the bottom to see and fill them in again.
 
 ### The schedule
 

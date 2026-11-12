@@ -133,7 +133,8 @@ def notify(db: Session, user: User, kind: str, data: dict, dedupe_key: str | Non
 def _push_to_home_assistant(db: Session, user: User, kind: str, data: dict) -> None:
     if not user_settings(user.settings).features.ha_notifications:
         return
-    service = get_integrations(db, user.household_id).ha_notify_service
+    # The person's own phone first, then the default in the app's configuration.
+    service = user_settings(user.settings).notify_service or get_integrations(db, user.household_id).ha_notify_service
     if not service:
         return
     client = ha_client(db, user.household_id)

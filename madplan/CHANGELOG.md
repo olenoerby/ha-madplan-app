@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.2
+
+- Each person chooses where their messages go, such as their own phone, under Settings, Features.
+  The notify service in the app's configuration is the default for those who have not chosen.
+
 ## 1.0.1
 
 - The app follows each person's own language in their Home Assistant profile, not only the

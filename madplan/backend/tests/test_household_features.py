@@ -427,10 +427,9 @@ def test_settings_round_trip_and_stay_separate(admin_client, db):
 
 
 def test_a_new_person_starts_in_home_assistants_system_language(db, home_assistant):
-    from app.core import ha
-
     from fastapi.testclient import TestClient
 
+    from app.core import ha
     from app.main import app
     from tests.conftest import ingress_headers
 

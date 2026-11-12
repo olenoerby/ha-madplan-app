@@ -99,6 +99,8 @@ class UserSettings(BaseModel):
     max_price_per_meal: float | None = Field(default=None, ge=0)
     use_phone_location: bool = False
     pantry_photo_auto_apply: bool = True
+    # The person's own phone, such as notify.mobile_app_their_phone. None uses the app's default.
+    notify_service: str | None = Field(default=None, pattern=r"^(notify\.)?[a-z0-9_]+$", max_length=120)
     features: FeatureToggles = FeatureToggles()
 
 

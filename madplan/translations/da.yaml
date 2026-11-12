@@ -18,8 +18,8 @@ configuration:
     name: AI Task-entitet
     description: Fx ai_task.openai_ai_task. Al AI går gennem den, og model, tokens og grænser sættes i den integration. Appens admin-side viser dem, du har. Lad den være tom for at bruge MadPlan uden AI.
   notify_service:
-    name: Notify-tjeneste
-    description: Fx notify.mobile_app_min_telefon, til MadPlans beskeder. Tom for ingen.
+    name: Standard notify-tjeneste
+    description: Fx notify.mobile_app_min_telefon. Bruges til dem, der ikke har valgt deres egen telefon i MadPlans indstillinger. Tom for ingen.
   assistant_reads_states:
     name: Assistenten må læse entiteters tilstand
     description: Så kan assistenten svare på fx "er vi løbet tør for toiletpapir?". Sensorers navne og værdier sendes så til AI-agenten.

@@ -40,7 +40,7 @@ app's own admin page shows what is set, checks that it works and lists the AI ag
 | Shopping list in Mealie | The list MadPlan sends to and reads ticks from. Made if it is missing |
 | Read from Mealie every (minutes) | How often changes in Mealie are taken over |
 | AI Task entity | Such as `ai_task.openai_ai_task`. Leave empty for no AI |
-| Notify service | Such as `notify.mobile_app_my_phone`, for MadPlan's messages |
+| Default notify service | Such as `notify.mobile_app_my_phone`. Each person can choose their own phone in MadPlan's settings, and this is used for those who have not |
 | The assistant may read entity states | Lets the assistant answer "are we out of toilet paper?" from your sensors |
 | Fetch offers, buy signals, weekly recipe search, automatic plans, how long chats and messages are kept | The schedule |
 
@@ -106,7 +106,7 @@ Nothing has yet been tried on a real Home Assistant installation.
 | Configuration on the app's tab in Home Assistant, shown and checked on the admin page | Works | Test and browser. Home Assistant's own form not seen yet |
 | AI through a chosen AI Task entity | Works | Test and browser, with a stand-in answer. Not with a real entity yet |
 | Photos (receipts, the cupboard) to the AI agent | Built | Test. Not with a real entity yet |
-| Messages through a notify service | Works | Test |
+| Messages to each person's own phone, chosen from Home Assistant's notify services, or the default one | Works | Test |
 | Mealie's buttons and texts are hidden until Mealie is connected | Works | Test and browser |
 | Mealie has the last word: moves, changes, removals, new entries and ticks are taken over | Works | Test against a fake Mealie |
 | SQLite in `/data`, migrated when the app starts | Works | Test, and on start in the browser run |

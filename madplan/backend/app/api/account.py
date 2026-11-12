@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from app.api.deps import CurrentUser, Db, ManagerUser, household_of
+from app.core import ha
 from app.core.db import utcnow
 from app.core.security import new_token, token_hash
 from app.models import ApiToken, HouseholdStore, Notification, Store, TrackedItem, User, UserStore
@@ -42,6 +43,12 @@ def put_my_settings(payload: UserSettings, user: CurrentUser, db: Db) -> dict:
     user.settings = payload.model_dump(mode="json")
     db.commit()
     return user.settings
+
+
+@router.get("/me/notify-services")
+def my_notify_services(user: CurrentUser) -> dict:
+    """Where messages can go in Home Assistant, and where they go when a person has not chosen."""
+    return {"available": ha.notify_services(), "default": ha.options().notify_service}
 
 
 @router.get("/me/export")

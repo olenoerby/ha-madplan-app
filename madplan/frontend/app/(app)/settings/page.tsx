@@ -201,6 +201,7 @@ function FoodTab() {
 function FeaturesTab() {
   const { t } = useI18n();
   const { data, change, save, busy, saved } = useMySettings();
+  const { data: notify } = useApi<{ available: { service: string; name: string }[]; default: string | null }>("/me/notify-services");
   if (!data) return <Loading />;
   const features = Object.keys(data.features) as (keyof FeatureToggles)[];
   return (
@@ -214,6 +215,19 @@ function FeaturesTab() {
             onChange={(value) => change({ features: { ...data.features, [feature]: value } })}
           />
         ))}
+        {data.features.ha_notifications && (
+          <Field label={t("settings.notify.label")} hint={t("settings.notify.hint")}>
+            <select value={data.notify_service ?? ""} onChange={(e) => change({ notify_service: e.target.value || null })}>
+              <option value="">{notify?.default ? t("settings.notify.default", { service: notify.default }) : t("settings.notify.none")}</option>
+              {(notify?.available ?? []).map((option) => (
+                <option key={option.service} value={option.service}>
+                  {option.name === option.service.slice(7) ? option.service : `${option.name} (${option.service})`}
+                </option>
+              ))}
+              {data.notify_service && !notify?.available.some((o) => o.service === data.notify_service) && <option value={data.notify_service}>{data.notify_service}</option>}
+            </select>
+          </Field>
+        )}
         <div className="divider" />
         <Check label={t("settings.photoAutoApply")} checked={data.pantry_photo_auto_apply} onChange={(pantry_photo_auto_apply) => change({ pantry_photo_auto_apply })} />
         <Check label={t("settings.phoneLocation")} hint={t("settings.phoneLocationHint")} checked={data.use_phone_location} onChange={(use_phone_location) => change({ use_phone_location })} />
