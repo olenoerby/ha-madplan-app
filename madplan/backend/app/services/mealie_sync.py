@@ -27,8 +27,8 @@ from app.services.app_settings import get_integrations, mealie_client, mealie_co
 from app.services.notifications import notify
 from app.services.pantry import load_stock
 from app.services.pricing import is_staple, key_for
-from app.services.recipes import household_profile, meal_portions, meal_types_from_labels, same_dish
-from app.services.text import text_matches, to_base_unit, words
+from app.services.recipes import household_profile, meal_portions, meal_type_words, meal_types_from_labels, same_dish
+from app.services.text import normalize, text_matches, to_base_unit, words
 from app.settings_schema import HouseholdSettings, household_settings, user_settings
 
 log = logging.getLogger(__name__)
@@ -151,6 +151,31 @@ def _import_page(client: MealieClient, recipe: Recipe, allergies: list[str]) -> 
     return remote
 
 
+def label_for_meals(client: MealieClient, remote: dict, meal_types: list[str]) -> list[str]:
+    """Puts the recipe in Mealie's categories and tags for its meals, such as "Aftensmad" or
+    "Dinner", when Mealie has them. None are made: the household's own names are kept. Returns
+    the names added. Failing here never undoes an import."""
+    wanted = {normalize(word) for meal in meal_types or [] for word in meal_type_words(meal)}
+    if not wanted or not remote.get("slug"):
+        return []
+    try:
+        changes: dict[str, list] = {}
+        added: list[str] = []
+        for field, existing in (("recipeCategory", client.categories()), ("tags", client.tags())):
+            current = list(remote.get(field) or [])
+            have = {c.get("id") for c in current}
+            matches = [o for o in existing if normalize(o.get("name") or "") in wanted and o.get("id") not in have]
+            if matches:
+                changes[field] = current + [{"id": o["id"], "name": o["name"], "slug": o.get("slug")} for o in matches]
+                added += [o["name"] for o in matches]
+        if changes:
+            client.update_recipe(remote["slug"], changes)
+        return added
+    except MealieError as exc:
+        log.warning("could not set categories on %s in Mealie: %s", remote.get("slug"), exc)
+        return []
+
+
 def ensure_recipe_in_mealie(db: Session, client: MealieClient, recipe: Recipe, household_id: int) -> Recipe:
     """The household's recipe with its Mealie id and slug filled in, or RecipeRefused."""
     if recipe.household_id == household_id and recipe.mealie_id and recipe.mealie_slug:
@@ -169,6 +194,7 @@ def ensure_recipe_in_mealie(db: Session, client: MealieClient, recipe: Recipe, h
         raise RecipeRefused(NO_PAGE)
     remote = _import_page(client, recipe, allergies)
     recipe.mealie_slug, recipe.mealie_id = remote.get("slug"), remote.get("id")
+    label_for_meals(client, remote, recipe.meal_types)
     return recipe
 
 

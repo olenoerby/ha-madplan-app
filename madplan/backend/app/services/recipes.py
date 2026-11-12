@@ -45,6 +45,11 @@ class Traits:
     carb_heavy_lines: int
 
 
+def meal_type_words(meal_type: str) -> tuple[str, ...]:
+    """The names a category or tag for this meal may have, in Danish and English."""
+    return _MEAL_TYPE_WORDS.get(meal_type, ())
+
+
 def meal_types_from_labels(labels: list[str]) -> list[str]:
     """Which meals a recipe's own categories and tags point to, if any."""
     cleaned = [normalize(label) for label in labels if label]

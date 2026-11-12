@@ -14,6 +14,8 @@
   Pages that are another dish are left out.
 - "New recipes" shows every found recipe, also those with nothing on offer this week, so any of
   them can be planned or added to Mealie. Recipes already in Mealie say so.
+- A recipe MadPlan adds to Mealie is put in Mealie's categories and tags for its meals, such as
+  "Aftensmad", "Dinner", "Morgenmad" or "Drinks", when Mealie has them. None are made.
 - The calendar has a button to Mealie's own meal planner, and dishes from Mealie link to their
   recipe there. Only with Mealie connected.
 

@@ -74,6 +74,15 @@ class MealieClient:
         payload = {"url": url, "includeTags": include_tags, "includeCategories": False}
         return self._request("POST", "/api/recipes/create/url", json=payload, timeout=90).json()
 
+    def categories(self) -> list[dict[str, Any]]:
+        return self._request("GET", "/api/organizers/categories", params={"perPage": 500, "page": 1}).json().get("items", [])
+
+    def tags(self) -> list[dict[str, Any]]:
+        return self._request("GET", "/api/organizers/tags", params={"perPage": 500, "page": 1}).json().get("items", [])
+
+    def update_recipe(self, slug: str, changes: dict[str, Any]) -> dict[str, Any]:
+        return self._request("PATCH", f"/api/recipes/{slug}", json=changes).json()
+
     def delete_recipe(self, slug: str) -> None:
         self._request("DELETE", f"/api/recipes/{slug}")
 

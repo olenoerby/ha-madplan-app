@@ -108,6 +108,10 @@ class FakeMealie:
         self.deleted: list[str] = []
         self.next_entry = 100
         self.fail_list = False
+        # Mealie's own categories and tags, as a household has named them.
+        self.categories: list[dict] = []
+        self.tags: list[dict] = []
+        self.patched: list[tuple[str, dict]] = []
 
     def handler(self, request: httpx.Request) -> httpx.Response:
         method, path = request.method, request.url.path
@@ -126,6 +130,15 @@ class FakeMealie:
             remote = self.imports[body["url"]]
             self.recipes[remote["slug"]] = remote
             return httpx.Response(201, json=remote["slug"])
+        if path == "/api/organizers/categories":
+            return httpx.Response(200, json={"items": self.categories})
+        if path == "/api/organizers/tags":
+            return httpx.Response(200, json={"items": self.tags})
+        if path.startswith("/api/recipes/") and method == "PATCH":
+            slug = path.rsplit("/", 1)[-1]
+            self.patched.append((slug, body))
+            self.recipes[slug] = {**self.recipes[slug], **body}
+            return httpx.Response(200, json=self.recipes[slug])
         if path.startswith("/api/recipes/"):
             slug = path.rsplit("/", 1)[-1]
             if method == "DELETE":
@@ -1430,3 +1443,30 @@ def test_every_found_recipe_can_be_seen_and_added_to_mealie(admin_client, db, me
     response = admin_client.post(f"/api/v1/new-recipes/{recipe.id}/to-mealie")
     assert response.status_code == 200, response.text
     assert response.json()["link"]["kind"] == "mealie"
+
+
+# Mealie's categories and tags
+
+
+def test_an_imported_recipe_gets_mealies_categories_and_tags_for_its_meals(admin_client, db, mealie):
+    mealie.categories = [{"id": "c1", "name": "Aftensmad", "slug": "aftensmad"}, {"id": "c2", "name": "Morgenmad", "slug": "morgenmad"}]
+    mealie.tags = [{"id": "t1", "name": "Dinner", "slug": "dinner"}, {"id": "t2", "name": "Hurtig", "slug": "hurtig"}]
+    recipe = web_recipe(db, title="Kylling i karry", meal_types=("dinner",))
+    db.commit()
+    mealie.imports[URL] = good_remote()
+    assert admin_client.post(f"/api/v1/new-recipes/{recipe.id}/to-mealie").status_code == 200
+    slug, changes = mealie.patched[-1]
+    assert slug == "kylling-i-karry"
+    # Only those for its meal, and only ones Mealie already has.
+    assert [c["name"] for c in changes["recipeCategory"]] == ["Aftensmad"]
+    assert [t["name"] for t in changes["tags"]] == ["Dinner"]
+
+
+def test_no_categories_are_made_when_mealie_has_none_that_fit(admin_client, db, mealie):
+    mealie.categories = [{"id": "c9", "name": "Kager", "slug": "kager"}]
+    recipe = web_recipe(db, title="Kylling i karry", meal_types=("dinner",))
+    db.commit()
+    mealie.imports[URL] = good_remote()
+    assert admin_client.post(f"/api/v1/new-recipes/{recipe.id}/to-mealie").status_code == 200
+    assert mealie.patched == []
+    assert not any("POST /api/organizers" in call for call in mealie.calls)
