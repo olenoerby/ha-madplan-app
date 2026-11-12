@@ -1,0 +1,49 @@
+configuration:
+  mealie_url:
+    name: Mealies adresse
+    description: Hvor MadPlan når Mealie, fx http://192.168.1.10:9925. Lad den være tom for at bruge MadPlan uden Mealie.
+  mealie_public_url:
+    name: Mealies adresse til links
+    description: Den adresse, folk åbner Mealie på, hvis den er en anden end ovenfor. Bruges kun til links.
+  mealie_token:
+    name: Mealies API-token
+    description: Laves i Mealie under din profil, API-tokens. Mealie bruges kun, når både adresse og token er sat.
+  mealie_shopping_list:
+    name: Indkøbsliste i Mealie
+    description: Den liste, MadPlan sender til og læser afkrydsninger tilbage fra.
+  mealie_sync_minutes:
+    name: Læs fra Mealie hvert (minutter)
+    description: Mealie har det sidste ord. Ændringer i dens madplan og indkøbsliste hentes så ofte.
+  ai_task_entity:
+    name: AI Task-entitet
+    description: Fx ai_task.openai_ai_task. Al AI går gennem den, og model, tokens og grænser sættes i den integration. Appens admin-side viser dem, du har. Lad den være tom for at bruge MadPlan uden AI.
+  notify_service:
+    name: Notify-tjeneste
+    description: Fx notify.mobile_app_min_telefon, til MadPlans beskeder. Tom for ingen.
+  assistant_reads_states:
+    name: Assistenten må læse entiteters tilstand
+    description: Så kan assistenten svare på fx "er vi løbet tør for toiletpapir?". Sensorers navne og værdier sendes så til AI-agenten.
+  crawl_interval_hours:
+    name: Hent tilbud hver (timer)
+    description: Tilbudsaviser skifter ugentligt, så én gang i døgnet er rigeligt og skåner siderne.
+  buy_signals:
+    name: Sig til, når det er godt at købe
+    description: Ud fra prishistorik, fra to uger efter første hentning.
+  recipe_search:
+    name: Søg efter nye opskrifter ugentligt
+    description: Bruger AI-agenten, som skal have lov at søge på nettet.
+  auto_plan:
+    name: Lav næste uges madplan af sig selv
+    description: Husstanden får besked og stemmer. Intet sendes til Mealie, uden at nogen trykker på knappen.
+  auto_plan_weekday:
+    name: Dag for næste uges madplan
+  auto_plan_hour:
+    name: Time for næste uges madplan
+  chat_retention_days:
+    name: Gem samtaler med assistenten (dage)
+    description: 0 gemmer dem.
+  notification_retention_days:
+    name: Gem beskeder (dage)
+    description: 0 gemmer dem.
+network:
+  8099/tcp: Kun til en Home Assistant-integration, der læser MadPlan med en personlig API-nøgle. Selve appen åbnes fra sidepanelet.

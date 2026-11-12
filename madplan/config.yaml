@@ -1,0 +1,55 @@
+name: MadPlan
+version: "1.0.0"
+slug: madplan
+description: Meal plans from this week's Danish supermarket offers, with voting, shopping lists, a pantry and an optional Mealie.
+url: https://github.com/olenoerby/ha-madplan-app
+arch:
+  - amd64
+  - aarch64
+init: false
+startup: application
+boot: auto
+ingress: true
+ingress_port: 8099
+# Closed unless an administrator gives it a port: only for an integration with a personal API token.
+# Requests on it can never name a user in a header, as they do not come from the Supervisor.
+ports:
+  8099/tcp: null
+panel_icon: mdi:silverware-fork-knife
+panel_title: MadPlan
+# Talks to Home Assistant through the Supervisor: its language, its users, AI Task and notify.
+homeassistant_api: true
+# Photos for the AI Task to read are put in /media for a moment, as a media source.
+map:
+  - type: media
+    read_only: false
+backup: hot
+options:
+  mealie_shopping_list: MadPlan
+  mealie_sync_minutes: 15
+  assistant_reads_states: false
+  crawl_interval_hours: 24
+  buy_signals: true
+  recipe_search: true
+  auto_plan: false
+  auto_plan_weekday: thursday
+  auto_plan_hour: 7
+  chat_retention_days: 180
+  notification_retention_days: 90
+schema:
+  mealie_url: url?
+  mealie_public_url: url?
+  mealie_token: password?
+  mealie_shopping_list: str
+  mealie_sync_minutes: int(1,1440)
+  ai_task_entity: match(^ai_task\.[a-z0-9_]+$)?
+  notify_service: match(^(notify\.)?[a-z0-9_]+$)?
+  assistant_reads_states: bool
+  crawl_interval_hours: int(6,168)
+  buy_signals: bool
+  recipe_search: bool
+  auto_plan: bool
+  auto_plan_weekday: list(monday|tuesday|wednesday|thursday|friday|saturday|sunday)
+  auto_plan_hour: int(0,23)
+  chat_retention_days: int(0,3650)
+  notification_retention_days: int(0,3650)

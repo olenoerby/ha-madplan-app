@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <title>Dinnerplan</title>
+  <rect width="512" height="512" rx="112" fill="#41BDF5"/>
+  <g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
+    <!-- The house: the outline Home Assistant's own style is built on -->
+    <path d="M84 236 L256 92 L428 236 V404 a24 24 0 0 1 -24 24 H108 a24 24 0 0 1 -24 -24 Z" stroke-width="24"/>
+    <g transform="translate(0 -14)">
+    <!-- The plate, with fork and knife -->
+    <circle cx="206" cy="318" r="66" stroke-width="16"/>
+    <circle cx="206" cy="318" r="38" stroke-width="11"/>
+    <path d="M118 270 V366 M106 270 V298 a12 12 0 0 0 24 0 V270" stroke-width="11"/>
+    <path d="M294 270 c-14 18 -14 46 0 56 V366" stroke-width="11"/>
+    <!-- The checklist -->
+    <path d="M328 268 l10 10 l18 -20" stroke-width="12"/>
+    <path d="M370 270 H396" stroke-width="12"/>
+    <path d="M328 318 l10 10 l18 -20" stroke-width="12"/>
+    <path d="M370 320 H396" stroke-width="12"/>
+    <rect x="328" y="356" width="24" height="24" rx="5" stroke-width="10"/>
+    <path d="M370 368 H396" stroke-width="12"/>
+    </g>
+  </g>
+</svg>

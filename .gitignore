@@ -1,0 +1,21 @@
+node_modules/
+.next/
+madplan/frontend/out/
+*.tsbuildinfo
+# Written by Next.js when it builds, not part of the project.
+madplan/frontend/AGENTS.md
+.pytest_cache/
+.ruff_cache/
+__pycache__/
+*.pyc
+.venv/
+*.db
+*.db-wal
+*.db-shm
+
+# Secrets and local configuration.
+.env
+.env.*
+options.json
+secret.key
+.local/

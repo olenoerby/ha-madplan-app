@@ -1,0 +1,8 @@
+**/node_modules
+**/.next
+frontend/out
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+**/*.db
+backend/tests

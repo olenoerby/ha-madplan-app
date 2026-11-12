@@ -1,0 +1,49 @@
+configuration:
+  mealie_url:
+    name: Mealie address
+    description: Where MadPlan reaches Mealie, such as http://192.168.1.10:9925. Leave empty to use MadPlan without Mealie.
+  mealie_public_url:
+    name: Mealie address for links
+    description: The address people open Mealie on, if it differs from the one above. Used for links only.
+  mealie_token:
+    name: Mealie API token
+    description: Made in Mealie under your profile, API tokens. Mealie is only used when both its address and token are set.
+  mealie_shopping_list:
+    name: Shopping list in Mealie
+    description: The list MadPlan sends to, and reads ticks back from.
+  mealie_sync_minutes:
+    name: Read from Mealie every (minutes)
+    description: Mealie has the last word. Changes to its meal planner and shopping list are taken this often.
+  ai_task_entity:
+    name: AI Task entity
+    description: Such as ai_task.openai_ai_task. All AI goes through it, and its model, tokens and limits are set in that integration. The app's admin page lists the ones you have. Leave empty to use MadPlan without AI.
+  notify_service:
+    name: Notify service
+    description: Such as notify.mobile_app_my_phone, for MadPlan's messages. Leave empty for none.
+  assistant_reads_states:
+    name: The assistant may read entity states
+    description: Lets the assistant answer things like "are we out of toilet paper?". Sensor names and values are then sent to the AI agent.
+  crawl_interval_hours:
+    name: Fetch offers every (hours)
+    description: Leaflets change weekly, so once a day is plenty, and kind to the sites.
+  buy_signals:
+    name: Tell when it is a good time to buy
+    description: Based on price history, from two weeks after the first fetch.
+  recipe_search:
+    name: Search for new recipes weekly
+    description: Uses the AI agent, which must be allowed to search the web.
+  auto_plan:
+    name: Make next week's plan by itself
+    description: The household is told and votes. Nothing goes to Mealie without someone pressing the button.
+  auto_plan_weekday:
+    name: Day to make next week's plan
+  auto_plan_hour:
+    name: Hour to make next week's plan
+  chat_retention_days:
+    name: Keep assistant chats (days)
+    description: 0 keeps them.
+  notification_retention_days:
+    name: Keep messages (days)
+    description: 0 keeps them.
+network:
+  8099/tcp: Only for a Home Assistant integration that reads MadPlan with a personal API token. The app itself opens from the sidebar.
