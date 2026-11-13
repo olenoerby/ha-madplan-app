@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.11
+
+- The note on what MadPlan puts in Mealie's planner names the person, in their language: "Oprettet af
+  Ole via MadPlan" or "Added by Ole via MadPlan". It is whoever put the dish on a day by hand, or
+  else whoever pressed "Save and send to Mealie". Notes from earlier versions still count as
+  MadPlan's.
+- The README uses the integration's new service names, `madplan_app.*`.
+
 ## 1.0.10
 
 - The documentation links to the optional integration, olenoerby/ha-madplan-integration, and says how

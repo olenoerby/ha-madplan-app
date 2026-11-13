@@ -266,8 +266,10 @@ def test_nothing_reaches_mealie_before_the_button_and_then_all_of_it(admin_clien
     entries = mealie.list_plan_entries(TEST_DAY, TEST_DAY)
     entry = next(e for e in entries if e["recipeId"] == remote["id"])
     assert entry["entryType"] == "dinner"
-    # Marked, so that people in Mealie can see it came from MadPlan.
-    assert entry["text"] == "Fra MadPlan"
+    # Marked, so that people in Mealie can see it came from MadPlan, and from whom.
+    from app.services.mealie_sync import is_marked
+
+    assert is_marked(entry) and "MadPlan" in entry["text"]
     # Four adults and a child at 0.6, for a recipe for four.
     assert entry["recipeScale"] == pytest.approx(1.15)
     note = next(e for e in entries if not e["recipeId"])
