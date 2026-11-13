@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.9
+
+- 123tilbudsaviser.dk is on the block list, as its terms allow no use beyond ordinary browsing.
+  tilbudsoverblik.dk and naestetilbudsavis.dk were checked too, and are not sources: see
+  docs/crawling-policy.md.
+
 ## 1.0.8
 
 - When pages are refused, a recipe search asks the AI agent for more, round by round, until it has
