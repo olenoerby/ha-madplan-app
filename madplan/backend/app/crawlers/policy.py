@@ -42,6 +42,10 @@ LEGALLY_BLOCKED_HOSTS: dict[str, str] = {
     ),
     "publisher.dk": "Covered by the same Dayli A/S prohibition as minetilbud.dk.",
     "dayli.dk": "Covered by the same Dayli A/S prohibition as minetilbud.dk.",
+    "123tilbudsaviser.dk": (
+        "Business Animals s.r.o. allows no use beyond ordinary browsing without the rights "
+        "holder's consent (brugsbetingelser, section 5, checked 2026-11-13)."
+    ),
     "tjek.com": (
         "Tjek's API content needs prior written approval (terms clause 8.3). MadPlan only "
         "reads the public etilbudsavis.dk pages, never the API behind them."

@@ -61,10 +61,18 @@ On MadPlan's admin page, an administrator can make someone a **household manager
 household's settings and stores, or a **guest**, who can see everything and vote but only changes
 their own things.
 
+## The integration
+
+For sensors, a calendar and services in Home Assistant, install the optional integration from
+https://github.com/olenoerby/ha-madplan-integration through HACS. Make a token in MadPlan under
+Settings, Home Assistant, and give the integration `http://<hostname>:8099`, with the hostname shown
+on this app's Info tab.
+
 ## Network
 
-The port is closed unless you give it one. It is only for a Home Assistant integration that reads
-MadPlan with a personal API token, made in MadPlan under Settings.
+The port is closed unless you give it one, and the integration does not need it: it reaches the app
+inside Home Assistant. A port is only for something outside Home Assistant that reads MadPlan with a
+token.
 
 ## Data
 

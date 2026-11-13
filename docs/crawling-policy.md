@@ -13,6 +13,9 @@ Checked on 2026-11-03.
 | **tilbudsugen.dk** | Only a `Sitemap` line, no `Disallow` | The terms page (`/page/personal-data-4`) has no ban on automated reading | **Allowed.** Reads `/offer/<term>` |
 | **etilbudsavis.dk** | `User-agent: *` / `Allow: /` | No consumer terms with a ban found. Tjek's B2B terms (tjek.com/terms) restrict their API | **Allowed, public pages only.** Reads `/soeg/<term>` |
 | **minetilbud.dk** | None (404) | **Forbids it**, see below | **Not a source.** On the blocklist |
+| **123tilbudsaviser.dk** | Allows all but `/api/`, `/*/exit/*` and query strings | **Forbids it**: "Brug ud over almindelig gennemsyn kræver samtykke fra rettighedshaveren" (use beyond ordinary browsing needs the rights holder's consent), brugsbetingelser section 5. Run by Business Animals s.r.o., Prague | **Not a source.** On the blocklist. Checked 2026-11-13 |
+| **naestetilbudsavis.dk** | Allows all but query strings | No ban on reading. Its code, layout and presentation may not be copied commercially. Run by ICMPFA, Bucharest | **Not a source.** Allowed to read, but it holds only pictures of the leaflets, with no products or prices as text. Checked 2026-11-13 |
+| **tilbudsoverblik.dk** | Cannot be read: Cloudflare answers programs, robots.txt included, with a challenge (403) | Could not be read either | **Not a source.** A site that will not show its rules to programs is not saying yes. Checked 2026-11-13 |
 
 `tilbudsavis.dk`, which the first version of this repository listed, is not a separate site. It
 redirects to `etilbudsavis.dk`.

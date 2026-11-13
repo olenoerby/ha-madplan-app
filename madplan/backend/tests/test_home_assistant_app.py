@@ -210,3 +210,45 @@ def test_nothing_outside_the_pages_is_served(client, built_pages):
     assert "hemmeligt" not in client.get("/../secret.txt").text
     assert "hemmeligt" not in client.get("/%2e%2e/secret.txt").text
     assert client.get("/api/v1/nothing").status_code == 404
+
+
+# The integration, olenoerby/ha-madplan-integration
+
+
+# What the integration reads from /api/v1/ha/summary. It is released apart from the app, so an
+# older integration must keep working: these may gain company, never go away.
+INTEGRATION_READS_FROM_SUMMARY = {
+    "household", "today_dinner", "today_meals", "next_meal", "meals_to_vote", "mealie_unsent",
+    "shopping_remaining", "shopping_cost", "expiring", "expiring_count", "running_low", "buy_now",
+    "budget_week", "budget_month", "savings_year", "alerts", "unread_notifications",
+}
+
+
+def test_the_integration_finds_everything_it_reads(admin_client, client, db):
+    from .test_planning import set_household
+
+    set_household(db, builtin_dishes=True)
+    db.commit()
+    token = admin_client.post("/api/v1/me/tokens", json={"name": "Home Assistant"}).json()["token"]
+    assert admin_client.post("/api/v1/plans", json={"mode": "days_ahead", "days_ahead": 2, "use_ai": False}).status_code == 201
+    # The integration calls the app directly, at its hostname, with no ingress headers.
+    auth = {"Authorization": f"Bearer {token}"}
+    summary = client.get("/api/v1/ha/summary", headers=auth)
+    assert summary.status_code == 200, summary.text
+    assert set(summary.json()) >= INTEGRATION_READS_FROM_SUMMARY
+    for budget in ("budget_week", "budget_month"):
+        assert {"expected", "budget", "remaining", "over_budget"} <= set(summary.json()[budget] or {})
+
+    meals = client.get("/api/v1/ha/calendar", headers=auth).json()
+    assert meals and {"id", "date", "meal_type", "title"} <= set(meals[0])
+    shopping = client.get("/api/v1/ha/shopping", headers=auth)
+    assert shopping.status_code == 200
+    assert client.post("/api/v1/ha/shopping", headers=auth, json={"name": "Toiletpapir"}).status_code == 201
+    items = client.get("/api/v1/ha/shopping", headers=auth).json()["items"]
+    item = next(i for i in items if i["name"] == "Toiletpapir")
+    assert {"id", "name", "checked"} <= set(item)
+    assert client.post(f"/api/v1/ha/shopping/{item['id']}", headers=auth, json={"checked": True}).status_code == 200
+    assert client.post("/api/v1/ha/pantry", headers=auth, json={"name": "Toiletpapir", "quantity": 2, "unit": "stk"}).status_code in (200, 201)
+    assert client.post(f"/api/v1/ha/meals/{meals[0]['id']}/vote", headers=auth, json={"vote": "yes"}).status_code == 200
+    # Without Mealie, sending says so rather than failing quietly.
+    assert client.post("/api/v1/ha/send-to-mealie", headers=auth).status_code in (200, 409)

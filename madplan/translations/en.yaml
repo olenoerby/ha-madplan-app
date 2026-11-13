@@ -46,4 +46,4 @@ configuration:
     name: Keep messages (days)
     description: 0 keeps them.
 network:
-  8099/tcp: Only for a Home Assistant integration that reads MadPlan with a personal API token. The app itself opens from the sidebar.
+  8099/tcp: Only for something outside Home Assistant that reads MadPlan with a token. The MadPlan integration does not need it. The app itself opens from the sidebar.

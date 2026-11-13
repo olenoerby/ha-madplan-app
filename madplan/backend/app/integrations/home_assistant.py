@@ -1,7 +1,7 @@
 """Outbound calls to Home Assistant: push notifications and, when allowed, read entity states.
 
 The other direction, Home Assistant reading MadPlan, is the integration in the
-olenoerby/MadPlan-HA repository, which talks to the ``/api/v1/ha`` routes.
+olenoerby/ha-madplan-integration repository, which talks to the ``/api/v1/ha`` routes.
 """
 
 from __future__ import annotations

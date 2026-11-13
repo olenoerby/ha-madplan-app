@@ -56,7 +56,7 @@ def test_minetilbud_is_blocked_even_though_it_has_no_robots_txt():
 
 @pytest.mark.parametrize(
     "url",
-    ["https://www.minetilbud.dk/x", "https://publisher.dk/x", "https://api.dayli.dk/x", "https://squid-api.tjek.com/v2/offers"],
+    ["https://www.minetilbud.dk/x", "https://publisher.dk/x", "https://api.dayli.dk/x", "https://squid-api.tjek.com/v2/offers", "https://www.123tilbudsaviser.dk/netto"],
 )
 def test_blocklist_covers_subdomains_and_related_hosts(url):
     assert policy.legal_block_reason(url) is not None
