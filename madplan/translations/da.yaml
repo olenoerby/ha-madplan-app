@@ -46,4 +46,4 @@ configuration:
     name: Gem beskeder (dage)
     description: 0 gemmer dem.
 network:
-  8099/tcp: Kun til en Home Assistant-integration, der læser MadPlan med en personlig API-nøgle. Selve appen åbnes fra sidepanelet.
+  8099/tcp: Kun til noget uden for Home Assistant, der læser MadPlan med et token. MadPlan-integrationen behøver den ikke. Selve appen åbnes fra sidepanelet.

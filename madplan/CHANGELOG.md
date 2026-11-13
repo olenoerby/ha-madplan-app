@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.10
+
+- The documentation links to the optional integration, olenoerby/ha-madplan-integration, and says how
+  it reaches the app inside Home Assistant with no port opened. A test checks every field the
+  integration reads, so it keeps working as the app is updated.
+
 ## 1.0.9
 
 - 123tilbudsaviser.dk is on the block list, as its terms allow no use beyond ordinary browsing.

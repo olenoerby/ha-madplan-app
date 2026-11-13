@@ -109,7 +109,7 @@ Things found this way, as a warning about what tests with invented data hide:
 | A link found for lasagne gave a lentil soup | The title check in `is_usable_import` |
 | Scraped Mealie recipes hold amounts as plain text | `split_ingredient` |
 | `from __future__ import annotations` broke the SDK's tools when imported locally | Module-level import in `ai/assistant.py` |
-| On the dashboard, tile names were cut off to "Husstanden E…" twice, and a count read "1 messages". Every test passed | Names on the tiles in `dashboard.yaml` in MadPlan-HA, and no unit on counts |
+| On the dashboard, tile names were cut off to "Husstanden E…" twice, and a count read "1 messages". Every test passed | Names on the tiles in `dashboard.yaml` in ha-madplan-integration, and no unit on counts |
 | Mealie shows no text on a plan entry with a recipe, seen by looking at its planner | Guests are a note entry of their own, `guest_note` |
 | Mealie answers 201 for a page it could not read, or with no picture (`image` stays empty) | The checks in `_import_page` |
 | Many real recipe pages have no structured data, or answer 403 on robots.txt | `recipe_pages.py` refuses them, and a search asks for twice what it needs |

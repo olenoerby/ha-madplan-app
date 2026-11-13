@@ -73,11 +73,17 @@ After that, Mealie decides: a dish moved, changed or removed in Mealie's meal pl
 changed or removed in MadPlan, an entry added in Mealie shows up in MadPlan's plan, and what is
 ticked off on Mealie's shopping list is ticked off in MadPlan.
 
-### For an integration
+### The integration: entities for dashboards and automations
 
-The app's port is closed by default. An administrator can give it a port on the Network section, for
-a Home Assistant integration that reads MadPlan with a personal API token, made under Settings in
-the app. Such requests can never act as anyone but the token's owner.
+[olenoerby/ha-madplan-integration](https://github.com/olenoerby/ha-madplan-integration) is an optional
+HACS integration that runs beside the app. It gives sensors such as `sensor.madplan_dinner_today`, a
+calendar, the shopping list as a to-do list, and services such as `madplan.send_to_mealie` for
+automations. Make a token in MadPlan under Settings, Home Assistant, and give the integration the
+app's address inside Home Assistant: `http://<hostname>:8099`, with the hostname from the app's
+Info tab. No port has to be opened. It acts only as the token's owner.
+
+The app's API for it only ever gains fields, so an integration keeps working as the app is updated.
+A test in this repository checks every field the integration reads.
 
 ### Data and backups
 
