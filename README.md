@@ -156,7 +156,7 @@ Nothing has yet been tried on a real Home Assistant installation.
 |---|---|---|
 | "Save and send to Mealie" sends recipe, calendar entry and shopping list, and nothing goes before | Works | Earlier, real. Test |
 | A recipe missing in Mealie is imported from its page, and checked | Works | Earlier, real |
-| What MadPlan puts in Mealie is marked "Fra MadPlan" | Works | Test |
+| What MadPlan puts in Mealie has a note naming the person, such as "Oprettet af Ole via MadPlan", in their language | Works | Test. Mealie's planner shows the note on entries without a recipe, such as guests; on a dish with a recipe it shows only the recipe |
 | A recipe added to Mealie gets Mealie's own categories and tags for its meals ("Aftensmad", "Dinner", "Morgenmad", "Drinks" and so on), when they exist. None are made | Works | Test, and against a real Mealie in CI |
 | What Mealie already has planned is shown on the plan | Works | Earlier, real |
 | The calendar links to Mealie's meal planner, and Mealie's dishes to their recipes | Works | Test. Mealie's planner address is the one in Mealie 2 and 3 |

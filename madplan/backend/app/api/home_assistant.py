@@ -129,7 +129,7 @@ def _mealie_unsent(db, household_id: int, today: date) -> list[dict]:
 def send_to_mealie(user: CurrentUser, db: Db) -> dict:
     """The "Save and send to Mealie" button, pressed from a phone, for all the household's plans."""
     try:
-        queued = send_household(db, user.household_id)
+        queued = send_household(db, user.household_id, user)
     except MealieOff as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, exc.code) from exc
     db.commit()

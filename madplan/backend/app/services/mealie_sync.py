@@ -316,8 +316,9 @@ def sync_meal(db: Session, meal: PlannedMeal, client: MealieClient, list_id: str
     if found and _allergy_in(found[1], allergies):
         raise RecipeRefused(ALLERGY)
     scale = _scale(meal, settings)
-    # So that people looking at Mealie can tell what MadPlan put there from what a person did.
-    mark = madplan_mark(user.locale if user else "da")
+    # So that people looking at Mealie can tell what MadPlan put there, and for whom.
+    who = _person_behind(db, meal) or user
+    mark = madplan_mark(who.locale if who else "da", who.display_name if who else None)
 
     moved = _moved(meal)
     if meal.mealie_entry_id and (sent.get("recipe_id") != meal.recipe_id or sent.get("scale") != scale):
@@ -362,16 +363,31 @@ def sync_meal(db: Session, meal: PlannedMeal, client: MealieClient, list_id: str
     meal.sync_status, meal.sync_error = "synced", None
 
 
+# Earlier versions wrote only these. They still count as MadPlan's when read back.
 MARKS = {"da": "Fra MadPlan", "en": "From MadPlan"}
+_BY_NAME = {"da": "Oprettet af {name} via MadPlan", "en": "Added by {name} via MadPlan"}
+_VIA = "via MadPlan"
 
 
-def madplan_mark(locale: str) -> str:
+def madplan_mark(locale: str, name: str | None = None) -> str:
+    """The note on what MadPlan puts in Mealie, such as "Oprettet af Ole via MadPlan"."""
+    if name:
+        return _BY_NAME.get(locale, _BY_NAME["da"]).format(name=name.strip()[:60])
     return MARKS.get(locale, MARKS["da"])
 
 
 def is_marked(entry: dict) -> bool:
     text = entry.get("text") or ""
-    return any(mark in text for mark in MARKS.values())
+    return _VIA in text or any(mark in text for mark in MARKS.values())
+
+
+def _person_behind(db: Session, meal: PlannedMeal) -> User | None:
+    """Whoever chose the dish by hand, or else whoever sent it to Mealie."""
+    for user_id in (meal.added_by, (meal.mealie_sent or {}).get("sent_by")):
+        person = db.get(User, user_id) if user_id else None
+        if person is not None and person.is_active:
+            return person
+    return None
 
 
 def _moved(meal: PlannedMeal) -> bool:
@@ -431,8 +447,10 @@ def plan_state(db: Session, plan: MealPlan) -> dict:
     }
 
 
-def send_plan(db: Session, plan: MealPlan) -> int:
-    """The "Save and send to Mealie" button. The one place that queues a plan's meals for the worker."""
+def send_plan(db: Session, plan: MealPlan, user: User | None = None) -> int:
+    """The "Save and send to Mealie" button. The one place that queues a plan's meals for the worker.
+
+    ``user`` is who pressed it, which Mealie's note on the dish names when nobody chose it by hand."""
     config = mealie_config(db, plan.household_id)
     if config is None:
         raise MealieOff("mealie_not_connected")
@@ -443,6 +461,8 @@ def send_plan(db: Session, plan: MealPlan) -> int:
     for meal in plan.meals:
         if is_unsent(meal, settings):
             meal.sync_status, meal.sync_error, meal.sync_attempts = "pending", None, 0
+            if user is not None:
+                meal.mealie_sent = {**(meal.mealie_sent or {}), "sent_by": user.id}
             queued += 1
     db.flush()
     return queued
@@ -461,13 +481,13 @@ def unsent_accepted(db: Session, household_id: int, today=None) -> list[PlannedM
     return [m for m in meals if is_unsent(m, settings)]
 
 
-def send_household(db: Session, household_id: int) -> int:
+def send_household(db: Session, household_id: int, user: User | None = None) -> int:
     """The "Save and send to Mealie" button for every current plan of the household, as from a phone.
 
     Someone still pressed something: this is the same button, only somewhere else."""
     today = local_today()
     plans = db.scalars(select(MealPlan).where(MealPlan.household_id == household_id, MealPlan.end_date >= today))
-    return sum(send_plan(db, plan) for plan in plans)
+    return sum(send_plan(db, plan, user) for plan in plans)
 
 
 def remind_unsent(db: Session, today=None) -> int:

@@ -520,7 +520,7 @@ def send_to_mealie(plan_id: int, user: CurrentUser, db: Db) -> dict:
     plan = _get_plan(db, plan_id, user)
     _require_member(plan, user)
     try:
-        send_plan(db, plan)
+        send_plan(db, plan, user)
     except MealieOff as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, exc.code) from exc
     db.commit()

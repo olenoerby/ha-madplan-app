@@ -1095,10 +1095,10 @@ def test_guests_get_a_note_of_their_own_in_mealies_planner(admin_client, db, mea
     """On the entry with the recipe it would not show: Mealie's planner displays only the recipe."""
     send_with_guests(admin_client, db, mealie)
     assert len(mealie.dishes) == 1
-    assert mealie.dishes[0]["text"] == "Fra MadPlan"
+    assert mealie.dishes[0]["text"] == "Oprettet af Admin via MadPlan"
     assert [n["title"] for n in mealie.notes] == ["Gæster: 2 voksne og 1 barn"]
     note = mealie.notes[0]
-    assert note["text"] == "I alt 4 voksne og 1 barn: Kylling i karry\n\nFra MadPlan"
+    assert note["text"] == "I alt 4 voksne og 1 barn: Kylling i karry\n\nOprettet af Admin via MadPlan"
     assert note["entryType"] == "dinner"
     assert note["recipeId"] is None
     assert note["date"] == mealie.dishes[0]["date"]
@@ -1108,7 +1108,7 @@ def test_the_note_follows_the_persons_language(admin_client, db, mealie):
     admin_client.headers["X-MadPlan-Language"] = "en"
     send_with_guests(admin_client, db, mealie, adults=1, children=2)
     assert mealie.notes[0]["title"] == "Guests: 1 adult and 2 children"
-    assert mealie.dishes[0]["text"] == "From MadPlan"
+    assert mealie.dishes[0]["text"] == "Added by Admin via MadPlan"
 
 
 def test_more_people_on_a_single_meal_are_guests_too(admin_client, db, mealie):
@@ -1537,3 +1537,36 @@ def test_a_search_stops_as_soon_as_it_has_enough(admin_client, db, web, fake_ope
     result = search(admin_client, meal_types=["dinner"]).json()
     assert result["found"] == 6
     assert len(model.calls) == 1
+
+
+# The note on what MadPlan puts in Mealie
+
+
+def test_the_note_names_who_chose_the_dish_or_else_who_sent_it(admin_client, db, mealie):
+    from app.services.mealie_sync import is_marked
+
+    only_real_recipes(db)
+    web_recipe(db)
+    mealie.imports[URL] = good_remote()
+    make_user(db, "mor")
+    mor = login_as("mor")
+    # The planner chose the dish, and Mor pressed the button.
+    plan = planned_and_accepted(admin_client, db)
+    assert mor.post(f"/api/v1/plans/{plan['id']}/send-to-mealie").status_code == 200
+    run_worker(db)
+    text = mealie.dishes[0]["text"]
+    assert text == "Oprettet af Mor via MadPlan"
+    # MadPlan still knows it as its own, as it does the older notes.
+    assert is_marked({"text": text}) and is_marked({"text": "Fra MadPlan"}) and not is_marked({"text": "Ole lavede den"})
+
+
+def test_a_dish_put_on_a_day_by_hand_names_that_person(db):
+    from app.models import PlannedMeal
+    from app.services.mealie_sync import _person_behind
+
+    mor = make_user(db, "mor")
+    admin = db.scalar(select(User).where(User.username == "admin"))
+    meal = PlannedMeal(added_by=mor.id, mealie_sent={"sent_by": admin.id})
+    assert _person_behind(db, meal).username == "mor"
+    assert _person_behind(db, PlannedMeal(mealie_sent={"sent_by": admin.id})).username == "admin"
+    assert _person_behind(db, PlannedMeal()) is None
