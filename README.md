@@ -77,7 +77,7 @@ ticked off on Mealie's shopping list is ticked off in MadPlan.
 
 [olenoerby/ha-madplan-integration](https://github.com/olenoerby/ha-madplan-integration) is an optional
 HACS integration that runs beside the app. It gives sensors such as `sensor.madplan_dinner_today`, a
-calendar, the shopping list as a to-do list, and services such as `madplan.send_to_mealie` for
+calendar, the shopping list as a to-do list, and services such as `madplan_app.send_to_mealie` for
 automations. Make a token in MadPlan under Settings, Home Assistant, and give the integration the
 app's address inside Home Assistant: `http://<hostname>:8099`, with the hostname from the app's
 Info tab. No port has to be opened. It acts only as the token's owner.
